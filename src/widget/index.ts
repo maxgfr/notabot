@@ -54,4 +54,4 @@ export function guardForm(form: HTMLFormElement, widget: NotabotCheck): () => vo
 }
 
 export { NotabotCheck, type State, type VerdictDetail } from "./element";
-export { MESSAGES } from "./i18n";
+export { MESSAGES, type Messages, registerMessages } from "./i18n";

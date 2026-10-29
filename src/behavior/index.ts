@@ -27,6 +27,12 @@ export interface BehaviorLog {
   inputWithoutKeys: number;
   focusChanges: number;
   firstInteraction: number | null;
+  /** When each wheel or scroll happened (at most 200). */
+  scrollTimes: number[];
+  /** Text that arrived by paste or drop (`inputType`), rather than typed. */
+  pastes: number;
+  /** Inputs into a honeypot: a field no person sees, that form-filling scripts fill. */
+  honeypot: number;
 }
 
 export interface Trajectory {
@@ -64,6 +70,10 @@ export interface BehaviorFeatures extends Trajectory {
   keyDwellMean: number | null;
   keyDwellCv: number | null;
   keyFlightCv: number | null;
+  /** Coefficient of variation of the gaps between scrolls: near 0 for a script's even ticks. */
+  scrollCv: number | null;
+  pastes: number;
+  honeypot: number;
 }
 
 function mean(values: number[]): number {
@@ -192,6 +202,8 @@ export function behaviorFeatures(log: BehaviorLog, now = performance.now()): Beh
   for (let i = 1; i < log.keys.length; i++)
     flights.push((log.keys[i] as KeySample).down - (log.keys[i - 1] as KeySample).down);
   const coalesced = moves.map((m) => m.coalesced);
+  const times = log.scrollTimes ?? [];
+  const scrollGaps = times.slice(1).map((t, i) => t - (times[i] as number));
   return {
     ...analyzeTrajectory(moves),
     sessionMs: Math.round(now - log.start),
@@ -208,6 +220,9 @@ export function behaviorFeatures(log: BehaviorLog, now = performance.now()): Beh
     keyDwellMean: dwell.length ? Math.round(mean(dwell)) : null,
     keyDwellCv: dwell.length > 2 ? round(cv(dwell)) : null,
     keyFlightCv: flights.length > 2 ? round(cv(flights)) : null,
+    scrollCv: scrollGaps.length > 4 ? round(cv(scrollGaps)) : null,
+    pastes: log.pastes,
+    honeypot: log.honeypot,
   };
 }
 
@@ -231,6 +246,9 @@ export function trackBehavior(target: Document | HTMLElement = document): Behavi
     inputWithoutKeys: 0,
     focusChanges: 0,
     firstInteraction: null,
+    scrollTimes: [],
+    pastes: 0,
+    honeypot: 0,
   };
   let lastKeyOrPaste = Number.NEGATIVE_INFINITY;
   const pending = new Map<string, KeySample>();
@@ -275,13 +293,22 @@ export function trackBehavior(target: Document | HTMLElement = document): Behavi
     lastKeyOrPaste = performance.now();
   };
   const onInput = (e: Event) => {
+    if ((e.target as HTMLElement | null)?.dataset?.notabotHoneypot !== undefined) {
+      log.honeypot++;
+      return;
+    }
     const type = (e as InputEvent).inputType ?? "";
-    if (/^insertFromPaste|^insertFromDrop|^deleteBy|^historyU/.test(type)) return;
+    if (/^insertFromPaste|^insertFromDrop/.test(type)) {
+      log.pastes++;
+      return;
+    }
+    if (/^deleteBy|^historyU/.test(type)) return;
     if (performance.now() - lastKeyOrPaste > 1000) log.inputWithoutKeys++;
   };
   const onScroll = (e: Event) => {
     seen(e);
     log.scrolls++;
+    if (log.scrollTimes.length < 200) log.scrollTimes.push(e.timeStamp || performance.now());
   };
   const onFocus = () => {
     log.focusChanges++;

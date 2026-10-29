@@ -26,6 +26,7 @@ import { DEFAULT_MAX_NUMBER } from "../pow/index";
 import { probesFor, wrongProbes } from "../probes/index";
 import {
   blend,
+  combineFlags,
   type Flag,
   rulesDecided,
   type ScoreResult,
@@ -246,7 +247,11 @@ export interface Notabot {
     info: RequestInfo,
   ): Promise<{ flags: Flag[]; bot: number; verdict: Verdict; ja4h: string }>;
   /** The full decision for a request: its token (verified, bound, single-use) and its own flags. */
-  verifyRequest(info: RequestInfo, token?: string | null): Promise<Decision>;
+  verifyRequest(
+    info: RequestInfo,
+    token?: string | null,
+    extra?: { honeypot?: string | null },
+  ): Promise<Decision>;
   /** Re-scores what a page posted and signs a token (the /verify endpoint). */
   verifySubmission(info: RequestInfo, body: unknown): Promise<EndpointResult>;
   /** Re-judges a slider gesture and re-signs the token as human when it passes (/slide). */
@@ -339,6 +344,11 @@ async function tokenFromRequest(
 ): Promise<string | null> {
   const fromHeader = request.headers.get(header);
   if (fromHeader) return fromHeader;
+  return fieldFromRequest(request, field);
+}
+
+/** A string field of a JSON or form body, read from a clone (the handler still gets the body). */
+export async function fieldFromRequest(request: Request, field: string): Promise<string | null> {
   const type = request.headers.get("content-type") ?? "";
   try {
     if (type.includes("application/json")) {
@@ -437,7 +447,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
           detail: info.ip,
         });
     }
-    const bot = combine(...flags.map((f) => f.weight));
+    const bot = combineFlags(flags);
     return { flags, bot, verdict: verdictOf(bot), ja4h: fingerprint };
   }
 
@@ -472,7 +482,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       return refuse("agent-rate", flags);
     // Agents run on servers and speak HTTP from libraries: those two rules say nothing here.
     const kept = flags.filter((f) => f.id !== "hosting-network" && f.id !== "http-library");
-    const bot = combine(...kept.map((f) => f.weight));
+    const bot = combineFlags(kept);
     const verdict = verdictOf(bot);
     const ok = accept.includes(verdict);
     return {
@@ -486,8 +496,24 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     };
   }
 
-  async function verifyRequest(info: RequestInfo, token?: string | null): Promise<Decision> {
+  async function verifyRequest(
+    info: RequestInfo,
+    token?: string | null,
+    extra: { honeypot?: string | null } = {},
+  ): Promise<Decision> {
     const analysis = await analyzeRequest(info);
+    // The widget's invisible field, posted with the form: only a script fills it.
+    if (extra.honeypot) {
+      analysis.flags.push({
+        id: "honeypot-filled",
+        category: "behavior",
+        weight: 0.7,
+        explain: "The form's invisible field was filled: what a script filling every input does.",
+        detail: `${tokenField}-hp`,
+      });
+      analysis.bot = combineFlags(analysis.flags);
+      analysis.verdict = verdictOf(analysis.bot);
+    }
     const origin = info.headers.get("origin");
     if (origin && !originOk(origin)) return refuse("wrong-origin", analysis.flags);
     if (options.agents && hasAgentSignature(info.headers))
@@ -536,7 +562,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       if (singleUse && !(await store.claim(`token:gate:${claims.jti}`, lifetime(claims))))
         return refuse("replayed-token", analysis.flags, claims);
     }
-    const bot = combine(claims.bot, ...analysis.flags.map((f) => f.weight));
+    const bot = combine(claims.bot, combineFlags(analysis.flags));
     // The token's verdict holds unless the request itself pushes the score past a threshold.
     const verdict = analysis.flags.length ? verdictOf(bot) : claims.verdict;
     const ok = accept.includes(verdict);
@@ -682,10 +708,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
   async function issueChallenge(info: RequestInfo, rateShare: number) {
     const pow = options.pow ?? {};
     const base = pow.base ?? options.maxnumber ?? DEFAULT_MAX_NUMBER;
-    const risk = combine(
-      ...requestFlags(info, rules).map((f) => f.weight),
-      Math.min(1, rateShare) * 0.5,
-    );
+    const risk = combine(combineFlags(requestFlags(info, rules)), Math.min(1, rateShare) * 0.5);
     const busy =
       pow.busyPerMinute &&
       (await countIn(store, `load:${minute()}`, 120, pow.busyPerMinute)) > pow.busyPerMinute
@@ -772,7 +795,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       ...(await velocityFlags(info, body.signals)),
       ...(await probeFlags(pow.solution.salt, body.probes)),
     ];
-    const rulesBot = combine(...flags.map((f) => f.weight));
+    const rulesBot = combineFlags(flags);
     const modelBot = rulesDecided(rulesBot)
       ? null
       : await askModel(
@@ -994,6 +1017,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       const decision = await verifyRequest(
         infoFromRequest(request, extra, trust),
         await tokenFromRequest(request, tokenHeader, tokenField),
+        { honeypot: await fieldFromRequest(request, `${tokenField}-hp`) },
       );
       if (!decision.ok) return refusal(decision);
       return handler(request, ...rest);

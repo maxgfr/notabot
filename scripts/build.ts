@@ -80,7 +80,6 @@ async function cdn() {
   await rm("dist/cdn/embed.js");
   await Bun.write("dist/cdn/notabot.mjs", Bun.file("dist/cdn/index.js"));
   await rm("dist/cdn/index.js");
-  await cp("assets/models.json", "dist/cdn/models.json");
   await cp("assets/recommended.json", "dist/cdn/recommended.json");
   for (const name of ["notabot.js", "notabot.mjs"]) {
     const entry = Bun.file(`dist/cdn/${name}`);
@@ -110,6 +109,8 @@ async function site() {
   if (!res.success) throw new AggregateError(res.logs, "site build failed");
   await unInlineFonts("dist/site/assets");
   await cp("dist/cdn", "dist/site/cdn", { recursive: true });
+  // The provider catalog (850 KB) is the demo's fallback: served by the site, not in the npm package.
+  await cp("assets/models.json", "dist/site/cdn/models.json");
   await cp("site/static", "dist/site", { recursive: true });
   await Bun.write("dist/site/.nojekyll", "");
 }

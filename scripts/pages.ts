@@ -46,11 +46,34 @@ export async function render(
   });
 }
 
+/**
+ * The keys the page's scripts ask for at run time (`t("a.b")`, and `t(\`stamp.${x}\`)` as a
+ * family), each checked in every language: a missing one would show its key to visitors.
+ */
+async function checkRuntimeKeys(dicts: Record<string, Dict>): Promise<void> {
+  const missing: string[] = [];
+  for (const rel of await Array.fromAsync(new Bun.Glob("site/scripts/*.ts").scan("."))) {
+    const code = await Bun.file(rel).text();
+    for (const [, key] of code.matchAll(/\bt\(\s*"([\w.-]+)"/g))
+      for (const [lang, dict] of Object.entries(dicts))
+        if (key && !(key in dict)) missing.push(`${lang}: "${key}" (${rel})`);
+    for (const [, prefix] of code.matchAll(/\bt\(\s*`([\w.-]+\.)\$\{/g))
+      for (const [lang, dict] of Object.entries(dicts))
+        if (prefix && !Object.keys(dict).some((k) => k.startsWith(prefix)))
+          missing.push(`${lang}: "${prefix}*" (${rel})`);
+  }
+  if (missing.length)
+    throw new Error(`i18n keys used by the scripts are missing:\n${missing.join("\n")}`);
+}
+
 export async function generate(): Promise<string[]> {
   await rm(OUT, { recursive: true, force: true });
   const outputs: string[] = [];
+  const dicts: Record<string, Dict> = {};
+  for (const lang of LANGS) dicts[lang] = (await Bun.file(`site/i18n/${lang}.json`).json()) as Dict;
+  await checkRuntimeKeys(dicts);
   for (const lang of LANGS) {
-    const dict = (await Bun.file(`site/i18n/${lang}.json`).json()) as Dict;
+    const dict = dicts[lang] as Dict;
     const depth = lang === DEFAULT_LANG ? 0 : 1;
     for (const page of PAGES) {
       const template = await Bun.file(`site/${page}.html`).text();

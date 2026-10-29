@@ -38,6 +38,9 @@ function behavior(over: Partial<BehaviorFeatures>): BehaviorFeatures {
     keyDwellMean: null,
     keyDwellCv: null,
     keyFlightCv: null,
+    scrollCv: null,
+    pastes: 0,
+    honeypot: 0,
     ...over,
   };
 }

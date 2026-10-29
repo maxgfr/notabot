@@ -533,4 +533,8 @@ export const RULES_FR: Record<string, string> = {
   "robotic-pointer": "Le pointeur avance en lignes parfaitement droites à vitesse constante.",
   "no-coalesced-events":
     "Les évènements de pointeur ne portent aucun échantillon brut, comme souvent les synthétiques.",
+  "robotic-scroll":
+    "Défilement au métronome : le même écart à chaque fois, comme la boucle d'un script.",
+  "honeypot-filled":
+    "Un champ qu'aucune personne ne voit ni n'atteint a été rempli : ce que fait un script qui remplit tout. Certains outils de saisie automatique aussi.",
 };

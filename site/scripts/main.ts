@@ -1,6 +1,6 @@
 import type { CheckResult } from "../../src/index";
 import { classifyLocal } from "../../src/llm/local";
-import { type Features, toFeatures } from "../../src/llm/prompt";
+import { buildPrompt, type Features, SYSTEM_PROMPT, toFeatures } from "../../src/llm/prompt";
 import { RULES, type ScoreResult, score, verdictOf } from "../../src/score/index";
 import { collect } from "../../src/signals/index";
 import type { NotabotSignals } from "../../src/signals/types";
@@ -8,8 +8,11 @@ import { sharedTracker } from "../../src/widget/element";
 import { defineNotabot, type NotabotCheck, type VerdictDetail } from "../../src/widget/index";
 import { GROUPS, RULES_FR } from "./catalog";
 import { copyText, el, lang, t, wireCopyButtons } from "./common";
-import { mountOfficer, showPrompt } from "./officer";
+import type { OfficerContext } from "./officer";
 import { drawGuilloche, drawPortrait, fillPassport, stamp } from "./passport";
+import { showPrompt } from "./prompt-view";
+import { mountServerPanel } from "./server";
+import { mountSimulator } from "./simulate";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -170,12 +173,15 @@ async function start(): Promise<void> {
   onSteps(widget);
   $("force-slider").addEventListener("click", () => widget.challenge());
 
-  // The papers are read on arrival, the verdict waits for the visitor.
+  // The papers are read on arrival, the verdict waits for the visitor; the check reuses them.
   signals = await collect();
+  widget.signals = signals;
   rules = score({ signals, behavior: null });
   fillPassport(signals, null);
   renderLedger(signals, rules);
   showPrompt(features());
+  mountSimulator(() => signals);
+  mountServerPanel(signals);
 
   $("copy-json").addEventListener("click", (e) => {
     if (signals)
@@ -186,17 +192,35 @@ async function start(): Promise<void> {
       );
   });
   $("download-json").addEventListener("click", () => {
-    if (!signals) return;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(
-      new Blob([JSON.stringify(signals, null, 2)], { type: "application/json" }),
-    );
-    a.download = "notabot-signals.json";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    if (signals) download("notabot-signals.json", signals);
   });
 
-  mountOfficer({
+  $("download-report").addEventListener("click", () => {
+    if (!signals) return;
+    const f = features();
+    const bot = finalBot ?? rules?.bot ?? null;
+    const answer = $("answer").textContent ?? "";
+    download("notabot-report.json", {
+      verdict: bot === null ? null : verdictOf(bot),
+      bot,
+      flags: rules?.flags ?? [],
+      signed: result?.signed ?? false,
+      features: f,
+      prompt: f
+        ? `system:
+${SYSTEM_PROMPT}
+
+user:
+${buildPrompt(f)}`
+        : null,
+      answer: answer === "—" ? null : answer,
+      localOpinion: f ? classifyLocal(f) : null,
+      signals,
+      behavior: result?.behavior ?? tracker.features(),
+    });
+  });
+
+  const officer: OfficerContext = {
     features,
     rulesBot: () => finalBot ?? rules?.bot ?? null,
     // The officer's blended verdict is the passport's: stamp, MRZ and report follow it.
@@ -207,7 +231,43 @@ async function start(): Promise<void> {
       if (signals) fillPassport(signals, t(`stamp.${verdict}`));
       if (rules) renderReport(rules, bot);
     },
+  };
+  // The AI stack and the provider catalog load when the visitor nears the officer, not before.
+  const section = $("officer");
+  let loading = false;
+  let mounted = false;
+  const load = () => {
+    if (loading) return;
+    loading = true;
+    observer.disconnect();
+    void import("./officer").then((m) => {
+      m.mountOfficer(officer);
+      mounted = true;
+    });
+  };
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) load();
+    },
+    { rootMargin: "400px" },
+  );
+  observer.observe(section);
+  section.addEventListener("focusin", load, { once: true });
+  // A submit before the module arrives must not reload the page.
+  $("officer-form").addEventListener("submit", (e) => {
+    if (!mounted) e.preventDefault();
+    load();
   });
+}
+
+function download(name: string, data: unknown): void {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(
+    new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+  );
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 void start();
