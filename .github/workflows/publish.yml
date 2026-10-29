@@ -17,9 +17,6 @@ concurrency:
 
 jobs:
   release:
-    # Off until npm trusted publishing is configured for this repository and workflow:
-    # then set the repository variable NPM_PUBLISH to "true".
-    if: vars.NPM_PUBLISH == 'true'
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
