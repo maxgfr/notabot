@@ -7,6 +7,11 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # Preset 10 needs conventional-changelog-writer 9; semantic-release 25's notes generator
+      # still loads an older writer, so release notes (and the npm publish after them) would fail.
+      - dependency-name: conventional-changelog-conventionalcommits
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule:
