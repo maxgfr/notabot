@@ -99,6 +99,12 @@ export class NotabotCheck extends Base {
   /** Strings that replace the built-in ones, by key (also `data-msg-<key>` attributes). */
   messages: Partial<Messages> = {};
 
+  /** A boolean attribute: present turns it on, unless its value is "false". */
+  #switch(name: string): boolean {
+    const value = this.getAttribute(name);
+    return value !== null && value !== "false";
+  }
+
   #lang(): Lang {
     return langOf(this.getAttribute("lang") || document.documentElement.lang);
   }
@@ -157,7 +163,7 @@ export class NotabotCheck extends Base {
         behavior: sharedTracker(),
         challenge: challengeUrl || "local",
         ...(this.signals ? { signals: this.signals } : {}),
-        ...(this.hasAttribute("local") ? { local: true } : {}),
+        ...(this.#switch("local") ? { local: true } : {}),
         llm,
         ...(verifyUrl ? { verifyUrl } : {}),
         ...(Number.isFinite(weight) && this.hasAttribute("rules-weight")
@@ -298,7 +304,7 @@ export class NotabotCheck extends Base {
       form.append(input);
     }
     input.value = this.#state === "human" ? this.#token : "";
-    if (!this.hasAttribute("no-honeypot") && !form.querySelector("[data-notabot-honeypot]"))
+    if (!this.#switch("no-honeypot") && !form.querySelector("[data-notabot-honeypot]"))
       form.append(honeypot(`${name}-hp`));
   }
 
@@ -446,7 +452,9 @@ export class NotabotCheck extends Base {
   #judge(local: boolean, gesture: Gesture, busy: HTMLElement): void {
     const verifyUrl = this.getAttribute("verify-url");
     const slideUrl = this.getAttribute("slide-url") || (verifyUrl ? slideUrlOf(verifyUrl) : null);
-    const token = this.#result?.signed ? this.#result.token : null;
+    // Only a token the server signed in doubt, with its challenge, can be settled by it: a step
+    // shown anyway (challenge()) on a signed human token stays in the page and changes nothing.
+    const token = this.#result?.signed && this.#result.visible ? this.#result.token : null;
     if (!slideUrl || !token) {
       this.#settle(local);
       return;

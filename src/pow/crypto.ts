@@ -29,7 +29,7 @@ export async function pbkdf2Hex(text: string, iterations: number): Promise<strin
   return toHex(bits);
 }
 
-async function hmacKey(secret: string): Promise<CryptoKey> {
+function importHmacKey(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     "raw",
     encoder.encode(secret),
@@ -40,7 +40,25 @@ async function hmacKey(secret: string): Promise<CryptoKey> {
 }
 
 export async function hmacHex(secret: string, message: string): Promise<string> {
-  return toHex(await crypto.subtle.sign("HMAC", await hmacKey(secret), encoder.encode(message)));
+  return toHex(
+    await crypto.subtle.sign("HMAC", await importHmacKey(secret), encoder.encode(message)),
+  );
+}
+
+/**
+ * An HMAC signer for one secret, its key imported once and kept by the signer alone (a server
+ * signs many times a request; the secret never lands in a shared cache). A failed import is
+ * retried next time rather than kept.
+ */
+export function hmacWith(secret: string): (message: string) => Promise<string> {
+  let key: Promise<CryptoKey> | null = null;
+  return async (message) => {
+    key ??= importHmacKey(secret).catch((e) => {
+      key = null;
+      throw e;
+    });
+    return toHex(await crypto.subtle.sign("HMAC", await key, encoder.encode(message)));
+  };
 }
 
 export function randomHex(bytes = 12): string {

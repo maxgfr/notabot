@@ -115,6 +115,7 @@ async function askModel(features: Features): Promise<number | null> {
       signal,
     });
     if (res.status !== 400) break;
+    await res.arrayBuffer().catch(() => {});
   }
   if (!res?.ok) return null;
   const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };

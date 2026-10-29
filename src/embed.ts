@@ -17,6 +17,9 @@ export const FORWARDED = [
   "noHoneypot",
 ] as const;
 
+/** Forwarded attributes that are on or off rather than a value. */
+const SWITCHES = new Set<string>(["local", "noHoneypot"]);
+
 const kebab = (s: string) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
 /** `data-challenge-url="…"` → `{ "challenge-url": "…" }`, URLs resolved against the page. */
@@ -24,6 +27,11 @@ export function attributesFromDataset(data: DOMStringMap, base: string): Record<
   const out: Record<string, string> = {};
   for (const key of FORWARDED) {
     const value = data[key];
+    // Switches: present (data-local, data-local="true") turns them on, "false" leaves them off.
+    if (SWITCHES.has(key)) {
+      if (value !== undefined && value !== "false") out[kebab(key)] = "";
+      continue;
+    }
     if (!value) continue;
     out[kebab(key)] = /Url$|^endpoint$/.test(key) ? new URL(value, base).href : value;
   }
