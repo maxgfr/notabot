@@ -665,21 +665,15 @@ main > section:not(.border)::before {
 }
 .level {
   display: inline-block;
+  font-family: var(--mono);
   font-size: 0.78rem;
-  font-stretch: 85%;
-  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--ink);
   padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid currentColor;
   white-space: nowrap;
-}
-.level {
-  font-family: var(--mono);
-  font-stretch: 100%;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: var(--ink);
 }
 .level-low {
   border-color: var(--rule);
