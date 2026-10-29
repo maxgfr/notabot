@@ -9,7 +9,8 @@
 //
 // Secrets: NOTABOT_HMAC_KEY (signs everything), NOTABOT_SITE_SECRET (your backend's).
 // Optional: LLM_ENDPOINT (OpenAI-compatible base URL), LLM_API_KEY, LLM_MODEL,
-// ALLOWED_ORIGINS (comma-separated), MAX_NUMBER, BASE_PATH, and a KV namespace NOTABOT_KV to
+// ALLOWED_ORIGINS (comma-separated), MAX_NUMBER, BASE_PATH, VISIBLE_CHALLENGES (slide,targets),
+// and a KV namespace NOTABOT_KV to
 // refuse replays across isolates.
 import { createNotabot, kvStore, type Notabot } from "notabot/middleware";
 
@@ -27,6 +28,8 @@ export interface Env {
   ALLOWED_ORIGINS?: string;
   MAX_NUMBER?: string;
   BASE_PATH?: string;
+  /** Comma-separated: slide, targets (default both). */
+  VISIBLE_CHALLENGES?: string;
   NOTABOT_KV?: KV;
 }
 
@@ -47,6 +50,13 @@ function notabot(env: Env): Notabot {
     ...(env.NOTABOT_SITE_SECRET ? { siteSecret: env.NOTABOT_SITE_SECRET } : {}),
     ...(Number(env.MAX_NUMBER) ? { maxnumber: Number(env.MAX_NUMBER) } : {}),
     ...(env.NOTABOT_KV ? { store: kvStore(env.NOTABOT_KV) } : {}),
+    ...(env.VISIBLE_CHALLENGES
+      ? {
+          visibleChallenges: env.VISIBLE_CHALLENGES.split(",")
+            .map((s) => s.trim())
+            .filter((s): s is "slide" | "targets" => s === "slide" || s === "targets"),
+        }
+      : {}),
     ...(env.LLM_ENDPOINT
       ? {
           llm: {

@@ -341,6 +341,53 @@ export function judgeSlide(
   return { passed: true, reason: "ok", trajectory };
 }
 
+/** Three targets, apart from each other, inside a box (percent): the slider's alternative. */
+export function randomTargets(count = 3): [number, number][] {
+  const out: [number, number][] = [];
+  while (out.length < count) {
+    const p: [number, number] = [
+      Math.round(12 + Math.random() * 76),
+      Math.round(20 + Math.random() * 60),
+    ];
+    if (out.every(([x, y]) => Math.hypot(x - p[0], y - p[1]) >= 24)) out.push(p);
+  }
+  return out;
+}
+
+/** One activation of a numbered target: which one, where (percent of the box), how. */
+export interface TargetClick {
+  /** The target's number, from 0. */
+  index: number;
+  x: number;
+  y: number;
+  t: number;
+  trusted: boolean;
+  /** Activated from the keyboard (Enter or Space on the focused target). */
+  key: boolean;
+}
+
+/**
+ * Judges the targets challenge: every target activated once, in order, by trusted events, a
+ * pointer landing on each target (within `radius` percent), and a person's uneven pace.
+ */
+export function judgeTargets(
+  clicks: TargetClick[],
+  targets: readonly (readonly [number, number])[],
+  radius = 10,
+): boolean {
+  if (clicks.length !== targets.length || !targets.length) return false;
+  for (const [i, c] of clicks.entries()) {
+    if (!c.trusted || c.index !== i) return false;
+    const [tx, ty] = targets[i] as readonly [number, number];
+    if (!c.key && Math.hypot(c.x - tx, c.y - ty) > radius) return false;
+  }
+  const gaps: number[] = [];
+  for (let i = 1; i < clicks.length; i++)
+    gaps.push((clicks[i] as TargetClick).t - (clicks[i - 1] as TargetClick).t);
+  if (gaps.some((g) => g < 120)) return false;
+  return cv(gaps) > 0.05 || gaps.some((g) => g > 400);
+}
+
 /**
  * Judges the keyboard way through the slider (arrow keys), for people who do not use a pointer:
  * trusted key events, with the uneven rhythm of a person pressing them.

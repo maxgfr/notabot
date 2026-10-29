@@ -13,6 +13,22 @@ export async function sha256Hex(text: string): Promise<string> {
   return toHex(await crypto.subtle.digest("SHA-256", encoder.encode(text)));
 }
 
+/**
+ * PBKDF2-SHA-256 of `text` with `iterations` rounds, 256 bits as hex: the costly hash of
+ * ALTCHA's v2, where one try costs thousands of SHA-256 rounds instead of one.
+ */
+export async function pbkdf2Hex(text: string, iterations: number): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", encoder.encode(text), "PBKDF2", false, [
+    "deriveBits",
+  ]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt: encoder.encode("notabot"), iterations },
+    key,
+    256,
+  );
+  return toHex(bits);
+}
+
 async function hmacKey(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     "raw",

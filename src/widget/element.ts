@@ -2,7 +2,10 @@ import {
   type BehaviorTracker,
   judgeKeySlide,
   judgeSlide,
+  judgeTargets,
   type PointerSample,
+  randomTargets,
+  type TargetClick,
   trackBehavior,
 } from "../behavior/index";
 import {
@@ -14,6 +17,7 @@ import {
   slideUrlOf,
   submitSlide,
   unsignedToken,
+  type VisibleChallenge,
 } from "../index";
 import type { LlmSettings } from "../llm/index";
 import { THRESHOLDS, verdictOf } from "../score/index";
@@ -41,6 +45,8 @@ export function sharedTracker(): BehaviorTracker {
 
 const Base = (typeof HTMLElement !== "undefined" ? HTMLElement : class {}) as typeof HTMLElement;
 const MAX_SLIDES = 3;
+/** A gesture as /slide reads it: a drag, arrow keys, or target activations. */
+type Gesture = Omit<Parameters<typeof submitSlide>[1], "token">;
 const ERROR_MESSAGES: Record<NotabotErrorCode, MessageKey> = {
   expired: "errorExpired",
   replayed: "errorRefused",
@@ -53,8 +59,9 @@ let sheet: CSSStyleSheet | null = null;
 
 /**
  * `<notabot-check>`: the checkbox, the proof-of-work behind it and, when the signals are
- * ambiguous, a slider. Attributes: mode (auto | click), challenge-url, verify-url, endpoint,
- * model, name, form, lang, theme (auto | light | dark), rules-weight.
+ * ambiguous, a slider or targets to press in order. Attributes: mode (auto | click),
+ * challenge-url, verify-url, slide-url, endpoint, model, name, form, lang, theme (auto | light |
+ * dark), rules-weight, challenges (slide, targets: which the page may draw).
  */
 export class NotabotCheck extends Base {
   static observedAttributes = ["lang", "theme"];
@@ -65,6 +72,8 @@ export class NotabotCheck extends Base {
   #token = "";
   #bot: number | null = null;
   #slides = 0;
+  /** The challenge drawn in the page when no server signed one. */
+  #local: VisibleChallenge | null = null;
   #running: AbortController | null = null;
   #error: NotabotErrorCode | null = null;
   #refreshTimer: ReturnType<typeof setTimeout> | undefined;
@@ -118,6 +127,7 @@ export class NotabotCheck extends Base {
     const running = new AbortController();
     this.#running = running;
     this.#slides = 0;
+    this.#local = null;
     this.#bot = null;
     this.#error = null;
     clearTimeout(this.#refreshTimer);
@@ -205,6 +215,7 @@ export class NotabotCheck extends Base {
   challenge(): void {
     if (!this.#result) return;
     this.#slides = 0;
+    this.#local = null;
     this.#set("challenge");
   }
 
@@ -314,7 +325,7 @@ export class NotabotCheck extends Base {
       row.append(retry);
     }
     box.append(row);
-    if (state === "challenge") box.append(this.#slider());
+    if (state === "challenge") box.append(this.#challengeView());
     const result = this.#result;
     if (result && state !== "checking") box.append(this.#details(result));
     const foot = el(
@@ -358,6 +369,125 @@ export class NotabotCheck extends Base {
     return details;
   }
 
+  /** After a gesture: human, another try, or bot once the tries run out. */
+  #settle(passed: boolean): void {
+    if (passed) {
+      this.#finish("human", true);
+      return;
+    }
+    this.#slides++;
+    if (this.#slides >= MAX_SLIDES) {
+      this.#finish("bot", true);
+      return;
+    }
+    this.#render();
+    this.#root?.querySelector<HTMLElement>(".handle, .target")?.focus();
+  }
+
+  /**
+   * Settles a gesture. In signed mode the server judges it again and signs the result: the page's
+   * own judgement would be one line of script away from "passed".
+   */
+  #judge(local: boolean, gesture: Gesture, busy: HTMLElement): void {
+    const verifyUrl = this.getAttribute("verify-url");
+    const slideUrl = this.getAttribute("slide-url") || (verifyUrl ? slideUrlOf(verifyUrl) : null);
+    const token = this.#result?.signed ? this.#result.token : null;
+    if (!slideUrl || !token) {
+      this.#settle(local);
+      return;
+    }
+    if (busy.getAttribute("aria-busy") === "true") return;
+    busy.setAttribute("aria-busy", "true");
+    submitSlide(slideUrl, { token, ...gesture }, this.#running?.signal)
+      .then((answer) => {
+        if (answer.passed && answer.token)
+          return this.#finish("human", true, {
+            token: answer.token,
+            bot: answer.bot ?? 0.3,
+            ...(answer.exp ? { exp: answer.exp } : {}),
+          });
+        if (answer.verdict === "bot") return this.#finish("bot", true);
+        this.#settle(false);
+      })
+      .catch((e) => {
+        if (!this.#running?.signal.aborted) this.#fail(e);
+      });
+  }
+
+  /** The challenge shown: the server's choice when it signed one, else one at random. */
+  #visible(): VisibleChallenge {
+    const signed = this.#result?.visible;
+    if (signed) return signed;
+    // `challenges="slide"` or `"targets"` narrows the page's own draw; both by default.
+    const kinds = (this.getAttribute("challenges") ?? "slide targets")
+      .split(/[\s,]+/)
+      .filter((k) => k === "slide" || k === "targets");
+    const kind = kinds[Math.floor(Math.random() * kinds.length)] ?? "slide";
+    this.#local ??=
+      kind === "slide"
+        ? { kind, zone: 45 + Math.random() * 38 }
+        : { kind, targets: randomTargets() };
+    return this.#local;
+  }
+
+  #challengeView(): HTMLElement {
+    return this.#visible().kind === "targets" ? this.#targets() : this.#slider();
+  }
+
+  /** Numbered targets to activate in order, by pointer or keyboard (their tab order is shuffled). */
+  #targets(): HTMLElement {
+    const visible = this.#visible();
+    const targets = visible.kind === "targets" ? visible.targets : randomTargets();
+    const wrap = el("div", { class: "targets-wrap" });
+    const hint = el(
+      "p",
+      { class: "hint", id: "notabot-targets-hint" },
+      this.#slides ? this.#t("targetsRetry") : this.#t("targetsHint"),
+    );
+    const box = el("div", {
+      class: "targets",
+      role: "group",
+      "aria-labelledby": "notabot-targets-hint",
+    });
+    const clicks: TargetClick[] = [];
+    const order = targets.map((_, i) => i).sort(() => Math.random() - 0.5);
+    for (const i of order) {
+      const [x, y] = targets[i] as [number, number];
+      const button = el(
+        "button",
+        {
+          type: "button",
+          class: "target",
+          "aria-label": this.#t("targetLabel").replace("{n}", String(i + 1)),
+          "aria-pressed": "false",
+        },
+        String(i + 1),
+      );
+      button.style.left = `${x}%`;
+      button.style.top = `${y}%`;
+      button.addEventListener("click", (e) => {
+        if (button.getAttribute("aria-pressed") === "true") return;
+        const r = box.getBoundingClientRect();
+        // A click from Enter or Space has no pointer position (detail 0).
+        const key = e.detail === 0;
+        clicks.push({
+          index: i,
+          x: key ? x : ((e.clientX - r.left) / r.width) * 100,
+          y: key ? y : ((e.clientY - r.top) / r.height) * 100,
+          t: e.timeStamp,
+          trusted: e.isTrusted,
+          key,
+        });
+        button.setAttribute("aria-pressed", "true");
+        if (clicks.length === targets.length)
+          this.#judge(judgeTargets(clicks, targets), { clicks }, box);
+      });
+      box.append(button);
+    }
+    wrap.append(hint, box);
+    return wrap;
+  }
+
   #slider(): HTMLElement {
     const wrap = el("div", { class: "slide" });
     const hint = el(
@@ -367,7 +497,8 @@ export class NotabotCheck extends Base {
     );
     const track = el("div", { class: "track" });
     // Target zone somewhere in the right half, 14% wide; where the server put it, when it did.
-    const zoneStart = this.#result?.zone ?? 45 + Math.random() * 38;
+    const visible = this.#visible();
+    const zoneStart = visible.kind === "slide" ? visible.zone : 45 + Math.random() * 38;
     const zone = el("div", { class: "zone" });
     zone.style.left = `${zoneStart}%`;
     zone.style.width = "14%";
@@ -390,39 +521,8 @@ export class NotabotCheck extends Base {
       handle.setAttribute("aria-valuenow", String(Math.round(pos)));
     };
     const landed = () => pos >= zoneStart && pos <= zoneStart + 14;
-    const settle = (passed: boolean) => {
-      if (passed) return this.#finish("human", true);
-      this.#slides++;
-      if (this.#slides >= MAX_SLIDES) return this.#finish("bot", true);
-      this.#render();
-      this.#root?.querySelector<HTMLElement>(".handle")?.focus();
-    };
-    // In signed mode the server judges the gesture again and signs the result: the page's own
-    // judgement would be one line of script away from "passed".
-    const verifyUrl = this.getAttribute("verify-url");
-    const slideUrl = this.getAttribute("slide-url") || (verifyUrl ? slideUrlOf(verifyUrl) : null);
-    const token = this.#result?.signed ? this.#result.token : null;
-    let pending = false;
-    const judge = (local: boolean, gesture: Omit<Parameters<typeof submitSlide>[1], "token">) => {
-      if (!slideUrl || !token) return settle(local);
-      if (pending) return;
-      pending = true;
-      handle.setAttribute("aria-disabled", "true");
-      submitSlide(slideUrl, { token, ...gesture, landed: landed() }, this.#running?.signal)
-        .then((answer) => {
-          if (answer.passed && answer.token)
-            return this.#finish("human", true, {
-              token: answer.token,
-              bot: answer.bot ?? 0.3,
-              ...(answer.exp ? { exp: answer.exp } : {}),
-            });
-          if (answer.verdict === "bot") return this.#finish("bot", true);
-          settle(false);
-        })
-        .catch((e) => {
-          if (!this.#running?.signal.aborted) this.#fail(e);
-        });
-    };
+    const judge = (local: boolean, gesture: Gesture) =>
+      this.#judge(local, { ...gesture, landed: landed() }, handle);
 
     let samples: PointerSample[] = [];
     let dragging = false;

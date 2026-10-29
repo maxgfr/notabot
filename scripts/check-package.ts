@@ -9,10 +9,21 @@ import { $ } from "bun";
 
 const published = process.argv.includes("--published");
 const root = resolve(import.meta.dir, "..");
+// The version a release just tagged (NOTABOT_VERSION, from `git describe` in CI): checked once
+// the registry serves it, so a check right after a release never tests the previous version.
+const wanted = process.env.NOTABOT_VERSION?.replace(/^v/, "");
+if (published && wanted) {
+  for (let i = 0; ; i++) {
+    const seen = (await $`npm view notabot@${wanted} version`.nothrow().quiet().text()).trim();
+    if (seen === wanted) break;
+    if (i >= 30) throw new Error(`notabot@${wanted} is not on the registry after 10 minutes`);
+    await Bun.sleep(20_000);
+  }
+}
 const dir = await mkdtemp(join(tmpdir(), "notabot-package-"));
 try {
   const source = published
-    ? "notabot@latest"
+    ? `notabot@${wanted ?? "latest"}`
     : join(dir, (await $`npm pack --silent --pack-destination ${dir}`.cwd(root).text()).trim());
   await Bun.write(
     join(dir, "package.json"),

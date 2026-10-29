@@ -1,10 +1,10 @@
 name: Production checks
 
 # The deployed site and the published package, as visitors and users get them: after each
-# GitHub Pages deployment, every morning, and on demand.
+# GitHub Pages deployment and npm release, every morning, and on demand.
 on:
   workflow_run:
-    workflows: [Deploy to GitHub Pages]
+    workflows: [Deploy to GitHub Pages, Publish to npm]
     types: [completed]
     branches: [main]
   schedule:
@@ -49,16 +49,24 @@ jobs:
   package:
     name: Package on npm
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.4
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
+      # The latest release tag, checked out: its own check script against its own package, never a
+      # newer script against whatever `latest` points at while the registry catches up.
+      - name: Version to check
+        run: |
+          tag="$(git describe --tags --abbrev=0 --match 'v*')"
+          git checkout --quiet "$tag"
+          echo "NOTABOT_VERSION=$tag" >> "$GITHUB_ENV"
       - run: bun install --frozen-lockfile
       - run: bun run test:package:published

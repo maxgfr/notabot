@@ -24,9 +24,9 @@ const req = (path: string, headers: Record<string, string>, init: RequestInit = 
 
 type Nb = ReturnType<typeof createNotabot>;
 
-async function solution(nb: Nb): Promise<string> {
+async function solution(nb: Nb, headers = chromeHeaders(UA), ip: string | null = IP) {
   const c = (await (
-    await nb.handle(req("/notabot/challenge", chromeHeaders(UA)))
+    await nb.handle(req("/notabot/challenge", headers), { ip })
   )?.json()) as Challenge;
   return encodeSolution({ ...c, number: (await search(c)) as number, took: 1 });
 }
@@ -235,7 +235,12 @@ describe("/verify", () => {
   });
 
   test("returns the token's expiry, and the slider zone when unsure", async () => {
-    const nb = createNotabot({ hmacKey: "k", maxnumber: 1500, tokenTtl: 120 });
+    const nb = createNotabot({
+      hmacKey: "k",
+      maxnumber: 1500,
+      tokenTtl: 120,
+      visibleChallenges: ["slide"],
+    });
     const { body } = await verified(nb);
     expect(body.exp).toBeGreaterThan(Date.now() / 1000 + 100);
     expect(body.zone).toBeUndefined();
@@ -362,7 +367,7 @@ describe("/slide", () => {
   const track = { left: 100, width: 300 };
 
   test("a hand's drag into the signed zone turns an unsure token into a human one", async () => {
-    const nb = createNotabot({ hmacKey: "k", maxnumber: 1500 });
+    const nb = createNotabot({ hmacKey: "k", maxnumber: 1500, visibleChallenges: ["slide"] });
     const { body } = await verified(nb, doubtful());
     const zone = body.zone as number;
     const info = infoFromRequest(req("/x", chromeHeaders(UA)), { ip: IP });
@@ -383,7 +388,7 @@ describe("/slide", () => {
   });
 
   test("a ruler-straight drag fails, attempts run out, and the keyboard way works", async () => {
-    const nb = createNotabot({ hmacKey: "k", maxnumber: 1500 });
+    const nb = createNotabot({ hmacKey: "k", maxnumber: 1500, visibleChallenges: ["slide"] });
     const { body } = await verified(nb, doubtful());
     const zone = body.zone as number;
     for (let i = 0; i < 3; i++)
@@ -405,7 +410,7 @@ describe("/slide", () => {
   });
 
   test("never overturns a bot, and refuses another browser's token", async () => {
-    const nb = createNotabot({ hmacKey: "k", maxnumber: 1500 });
+    const nb = createNotabot({ hmacKey: "k", maxnumber: 1500, visibleChallenges: ["slide"] });
     const s = realChrome();
     s.automation.webdriver = true;
     const bot = await verified(nb, s);
@@ -426,5 +431,53 @@ describe("/slide", () => {
     );
     expect(other.status).toBe(403);
     expect((await post(nb, "slide", { token: body.token })).status).toBe(400);
+  });
+
+  test("targets: activated in order, on target, at a person's pace; a slide does not pass them", async () => {
+    const nb = createNotabot({ hmacKey: "k", maxnumber: 1500, visibleChallenges: ["targets"] });
+    const { body } = await verified(nb, doubtful());
+    const challenge = body.challenge as { kind: string; targets: [number, number][] };
+    expect(challenge.kind).toBe("targets");
+    expect(body.zone).toBeUndefined();
+    const click = (i: number, t: number, over: Partial<Record<string, unknown>> = {}) => ({
+      index: i,
+      x: (challenge.targets[i] as [number, number])[0] + 2,
+      y: (challenge.targets[i] as [number, number])[1] - 1,
+      t,
+      trusted: true,
+      key: false,
+      ...over,
+    });
+    const slideInstead = await post(nb, "slide", {
+      token: body.token,
+      samples: drag(60),
+      track,
+      landed: true,
+    });
+    expect(slideInstead.body.passed).toBe(false);
+    const wrongOrder = await post(nb, "slide", {
+      token: body.token,
+      clicks: [click(1, 0, { index: 0 }), click(0, 500, { index: 1 }), click(2, 1100)],
+    });
+    expect(wrongOrder.body.passed).toBe(false);
+    const ok = await post(nb, "slide", {
+      token: body.token,
+      clicks: [click(0, 0), click(1, 640), click(2, 1150)],
+    });
+    expect(ok.body).toMatchObject({ passed: true, verdict: "human" });
+  });
+
+  test("targets from the keyboard: the order counts, not the position", async () => {
+    const nb = createNotabot({ hmacKey: "k", maxnumber: 1500, visibleChallenges: ["targets"] });
+    const { body } = await verified(nb, doubtful());
+    const keys = [0, 1, 2].map((index, i) => ({
+      index,
+      x: 0,
+      y: 0,
+      t: [0, 480, 1300][i] as number,
+      trusted: true,
+      key: true,
+    }));
+    expect((await post(nb, "slide", { token: body.token, clicks: keys })).body.passed).toBe(true);
   });
 });

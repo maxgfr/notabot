@@ -14,7 +14,7 @@ const state = (page: Page) =>
  * says: /verify gets a known Chrome's signals and headers (a software GPU, nothing else). The
  * drag, and its judgement by /slide, are the real browser's.
  */
-async function doubtfulVerify(page: Page) {
+async function doubtfulVerify(page: Page, kind: "slide" | "targets" = "slide") {
   await page.route("**/worker/verify", async (route) => {
     const body = JSON.parse(route.request().postData() ?? "{}");
     const signals = realChrome();
@@ -22,6 +22,8 @@ async function doubtfulVerify(page: Page) {
     const origin = (await route.request().headerValue("origin")) ?? "";
     // Sent from Node, not the browser, which would add its own HeadlessChrome client hints.
     const response = await route.fetch({
+      // The same Worker (same key), pinned to one visible challenge.
+      url: route.request().url().replace("/worker/verify", `/worker-${kind}/verify`),
       headers: { ...chromeHeaders(UA, { origin }), "content-type": "application/json" },
       postData: JSON.stringify({ ...body, signals, behavior: null }),
     });
@@ -113,4 +115,38 @@ test("signed mode: a page that calls the slider passed by itself gets nothing si
     return res.json();
   }, unsure);
   expect(answer).toMatchObject({ passed: false });
+});
+
+test("signed mode: targets pressed in order, by mouse then by keyboard", async ({
+  page,
+  request,
+}) => {
+  await doubtfulVerify(page, "targets");
+  await page.goto("/worker.html");
+  await widget(page).locator("button.seal").click();
+  await expect.poll(() => state(page), { timeout: 20_000 }).toBe("challenge");
+  const targets = widget(page).locator(".target");
+  await expect(targets).toHaveCount(3);
+  // Out of order: refused by the server, and a new try is drawn.
+  for (const n of ["2", "1", "3"]) {
+    await widget(page)
+      .getByRole("button", { name: `Target ${n}` })
+      .click();
+    await page.waitForTimeout(260);
+  }
+  await expect(widget(page).locator(".hint")).toContainText("try again");
+  // From the keyboard, in order, at a person's pace.
+  for (const [i, n] of ["1", "2", "3"].entries()) {
+    await widget(page)
+      .getByRole("button", { name: `Target ${n}` })
+      .focus();
+    await page.waitForTimeout(200 + i * 170);
+    await page.keyboard.press("Enter");
+  }
+  await expect.poll(() => state(page)).toBe("human");
+  const token = await widget(page).evaluate((el) => (el as unknown as { token: string }).token);
+  const verify = await request.post("/worker/siteverify", {
+    data: { secret: "dev-secret", response: token },
+  });
+  expect(await verify.json()).toMatchObject({ success: true, verdict: "human" });
 });

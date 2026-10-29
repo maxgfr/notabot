@@ -6,7 +6,10 @@ import {
   type BehaviorFeatures,
   judgeKeySlide,
   judgeSlide,
+  judgeTargets,
   type PointerSample,
+  randomTargets,
+  type TargetClick,
 } from "../behavior/index";
 // The prompt module only: the server builds the same prompt without bundling the AI stack.
 import {
@@ -19,6 +22,8 @@ import {
   toFeatures,
 } from "../llm/prompt";
 import { base64urlDecode, hmacHex, safeEqual, sha256Hex } from "../pow/crypto";
+import { DEFAULT_MAX_NUMBER } from "../pow/index";
+import { probesFor, wrongProbes } from "../probes/index";
 import {
   blend,
   type Flag,
@@ -37,7 +42,9 @@ import {
   verifyToken,
 } from "../server/index";
 import type { NotabotSignals } from "../signals/types";
+import { ja4h } from "./fingerprints";
 import {
+  CROSS_CHECK_RULES,
   combine,
   crossCheckFlags,
   type NetworkInfo,
@@ -48,6 +55,7 @@ import {
 } from "./request";
 import { isBehavior, isSignals } from "./schema";
 import { countIn, memoryStore, type ReplayStore } from "./store";
+import { type AgentPolicy, hasAgentSignature, policyFor, verifyAgent } from "./webbotauth";
 
 /** Which proxy, if any, may tell the client IP: never trust a header nobody vouches for. */
 export type TrustProxy = "cloudflare" | "x-forwarded-for" | false;
@@ -77,8 +85,23 @@ export interface NotabotServerOptions {
   singleUse?: boolean;
   /** Token lifetime in seconds. Default 300. */
   tokenTtl?: number;
-  /** Proof-of-work size (average maxnumber / 2 hashes). Default 50 000. */
+  /** Proof-of-work size for a clean request (average maxnumber / 2 hashes). Default 50 000. */
   maxnumber?: number;
+  /**
+   * How the proof of work is priced: `base` (default `maxnumber`), at most `max` (20 × base),
+   * the algorithm ("SHA-256", "PBKDF2", or "auto": PBKDF2 for risky requests), PBKDF2's `cost`
+   * (rounds a try, 5000), and `busyPerMinute`, challenges a minute past which every price
+   * doubles.
+   */
+  pow?: {
+    base?: number;
+    max?: number;
+    algorithm?: "SHA-256" | "PBKDF2" | "auto";
+    cost?: number;
+    busyPerMinute?: number;
+    /** Bind each puzzle to the client's IP and User-Agent. Default true. */
+    bind?: boolean;
+  };
   /** Header and form field the token arrives in. */
   tokenHeader?: string;
   tokenField?: string;
@@ -95,6 +118,24 @@ export interface NotabotServerOptions {
    * 429. Off by default.
    */
   ratePerMinute?: number;
+  /** The challenges a visitor in doubt may get, in turn. Default both: ["slide", "targets"]. */
+  visibleChallenges?: VisibleChallenge["kind"][];
+  /**
+   * Web Bot Auth: agents that sign their requests (RFC 9421) are let through when their operator
+   * is in `allow`, with its own rate; the hosting and HTTP-library rules do not count against
+   * them. A signed request from an operator not listed is refused. Off when unset.
+   */
+  agents?: AgentPolicy;
+  /**
+   * Fingerprints at scale: the same browser fingerprint (canvas, WebGL, audio, fonts) from more
+   * than `ipsPerFingerprint` IPs (default 30) in `windowSeconds` (default 600) flags
+   * `fingerprint-velocity`; more than `fingerprintsPerIp` fingerprints (default 6) from one IP
+   * flags `fingerprint-churn`. Off by default: identical phones share a fingerprint, and an
+   * office or a carrier puts many people behind one IP, so tune the thresholds to your traffic.
+   */
+  velocity?:
+    | boolean
+    | { windowSeconds?: number; ipsPerFingerprint?: number; fingerprintsPerIp?: number };
   /**
    * Who tells the client IP. Default false: only the platform (Cloudflare's `request.cf`, the
    * Node adapter's `req.ip`) or an `ip` you pass. "cloudflare" reads cf-connecting-ip,
@@ -116,7 +157,11 @@ export type DecisionReason =
   | "replayed-token"
   | "token-mismatch"
   | "unsigned-token"
-  | "verdict";
+  | "verdict"
+  | "verified-agent"
+  | "agent-not-allowed"
+  | "bad-agent-signature"
+  | "agent-rate";
 
 export interface Decision {
   ok: boolean;
@@ -127,12 +172,16 @@ export interface Decision {
   /** Request flags (and the token's browser flags when the page posted them). */
   flags: Flag[];
   claims: TokenClaims | null;
+  /** An agent whose Web Bot Auth signature verified, and who operates it. */
+  verifiedAgent?: { operator: string };
 }
 
 export interface VerifyBody {
   signals?: NotabotSignals;
   behavior?: BehaviorFeatures | null;
   solution?: string;
+  /** Answers to the puzzle's probes, in order. */
+  probes?: string[];
 }
 
 /** What the widget posts to {base}/slide: the token it got and the gesture, never a verdict. */
@@ -147,10 +196,27 @@ export interface SlideBody {
   position?: number;
   /** Whether the handle ended in the zone; read only when the token carries no zone. */
   landed?: boolean;
+  /** Or, for the targets challenge, each activation in order. */
+  clicks?: TargetClick[];
 }
 
 /** Why an endpoint refused, for the widget to tell an expired puzzle from a refusal. */
 export type EndpointReason = "malformed" | "expired" | "replayed" | "refused" | "rate-limited";
+
+/** The challenge a visitor in doubt is shown: a slider and its zone, or targets in order. */
+export type VisibleChallenge =
+  | { kind: "slide"; zone: number }
+  | { kind: "targets"; targets: [number, number][] };
+
+/** A slider or targets, in turn: a fixed challenge gets scripted, two cost twice. */
+export function visibleChallenge(
+  kinds: readonly VisibleChallenge["kind"][] = ["slide", "targets"],
+): VisibleChallenge {
+  const kind = kinds[Math.floor(Math.random() * kinds.length)] ?? "slide";
+  return kind === "slide"
+    ? { kind, zone: Math.round(45 + Math.random() * 38) }
+    : { kind, targets: randomTargets() };
+}
 
 export interface EndpointResult {
   status: number;
@@ -176,7 +242,9 @@ export interface Notabot {
   /** RequestInfo of a Fetch Request, its IP read as `trustProxy` / `getIp` allow. */
   requestInfo(request: Request, extra?: Partial<RequestInfo>): RequestInfo;
   /** The request alone: headers, protocol, network, rate. */
-  analyzeRequest(info: RequestInfo): Promise<{ flags: Flag[]; bot: number; verdict: Verdict }>;
+  analyzeRequest(
+    info: RequestInfo,
+  ): Promise<{ flags: Flag[]; bot: number; verdict: Verdict; ja4h: string }>;
   /** The full decision for a request: its token (verified, bound, single-use) and its own flags. */
   verifyRequest(info: RequestInfo, token?: string | null): Promise<Decision>;
   /** Re-scores what a page posted and signs a token (the /verify endpoint). */
@@ -232,7 +300,8 @@ export function infoFromRequest(
     ip: trust.getIp?.(request) ?? clientIp(request, trust.trustProxy ?? false),
     httpVersion: cf?.httpProtocol ? cf.httpProtocol.replace(/^HTTP\//, "") : null,
     network: cf ?? null,
-    ja4: cf?.botManagement?.ja4 ?? null,
+    // A JA4 header only from a proxy the options trust: anyone can send x-ja4.
+    ja4: cf?.botManagement?.ja4 ?? (trust.trustProxy ? request.headers.get("x-ja4") : null),
     ...extra,
   };
 }
@@ -288,6 +357,18 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
+function isClick(c: unknown): c is TargetClick {
+  return (
+    isRecord(c) &&
+    Number.isInteger(c.index) &&
+    finite(c.x) &&
+    finite(c.y) &&
+    finite(c.t) &&
+    typeof c.trusted === "boolean" &&
+    typeof c.key === "boolean"
+  );
+}
+
 function isSamples(v: unknown): v is PointerSample[] {
   return (
     Array.isArray(v) &&
@@ -340,7 +421,9 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     return true;
   }
 
-  async function analyzeRequest(info: RequestInfo) {
+  async function analyzeRequest(given: RequestInfo) {
+    const fingerprint = given.ja4h ?? (await ja4h(given));
+    const info = { ...given, ja4h: fingerprint };
     const flags = requestFlags(info, rules);
     const limit = options.ratePerMinute;
     if (limit && info.ip) {
@@ -355,7 +438,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
         });
     }
     const bot = combine(...flags.map((f) => f.weight));
-    return { flags, bot, verdict: verdictOf(bot) };
+    return { flags, bot, verdict: verdictOf(bot), ja4h: fingerprint };
   }
 
   const refuse = (
@@ -372,10 +455,43 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     claims,
   });
 
+  /** What a signed agent gets: allowed, rated, or refused for its signature or its operator. */
+  async function agentDecision(
+    info: RequestInfo,
+    policy: AgentPolicy,
+    flags: Flag[],
+  ): Promise<Decision> {
+    const agent = await verifyAgent(info, policy);
+    if (!agent.ok)
+      return refuse(
+        agent.reason === "not-allowed" ? "agent-not-allowed" : "bad-agent-signature",
+        flags,
+      );
+    const limit = policyFor(policy, agent.operator)?.ratePerMinute;
+    if (limit && (await countIn(store, `agent:${agent.operator}:${minute()}`, 120, limit)) > limit)
+      return refuse("agent-rate", flags);
+    // Agents run on servers and speak HTTP from libraries: those two rules say nothing here.
+    const kept = flags.filter((f) => f.id !== "hosting-network" && f.id !== "http-library");
+    const bot = combine(...kept.map((f) => f.weight));
+    const verdict = verdictOf(bot);
+    const ok = accept.includes(verdict);
+    return {
+      ok,
+      reason: ok ? "verified-agent" : "verdict",
+      verdict,
+      bot,
+      flags: kept,
+      claims: null,
+      verifiedAgent: { operator: agent.operator },
+    };
+  }
+
   async function verifyRequest(info: RequestInfo, token?: string | null): Promise<Decision> {
     const analysis = await analyzeRequest(info);
     const origin = info.headers.get("origin");
     if (origin && !originOk(origin)) return refuse("wrong-origin", analysis.flags);
+    if (options.agents && hasAgentSignature(info.headers))
+      return agentDecision(info, options.agents, analysis.flags);
     if (!token) {
       if (options.requireToken !== false)
         return refuse("missing-token", analysis.flags, null, analysis.bot);
@@ -480,7 +596,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
   /** Signs a token for this request: origin, user agent and IP bound as the options say. */
   async function issue(
     info: RequestInfo,
-    claims: { verdict: Verdict; bot: number; zone?: number },
+    claims: { verdict: Verdict; bot: number; zone?: number; targets?: [number, number][] },
   ): Promise<{ token: string; exp: number }> {
     const origin = info.headers.get("origin");
     const iph = bind && info.ip ? await ipHashOf(info.ip) : undefined;
@@ -497,6 +613,126 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     return { token, exp: Math.floor(Date.now() / 1000) + ttl };
   }
 
+  /**
+   * The same fingerprint from many IPs, or many fingerprints from one IP, within a window:
+   * what a farm of browsers looks like from the server. Counted with the store, so across
+   * instances with redisStore.
+   */
+  async function velocityFlags(info: RequestInfo, signals: NotabotSignals): Promise<Flag[]> {
+    const v = options.velocity;
+    if (!v || !info.ip) return [];
+    const {
+      windowSeconds = 600,
+      ipsPerFingerprint = 30,
+      fingerprintsPerIp = 6,
+    } = v === true ? {} : v;
+    const h = signals.hardware;
+    if (!h.canvas && !h.audio && !h.webgl) return [];
+    const fp = (
+      await sha256Hex(
+        JSON.stringify([
+          h.canvas?.hash ?? null,
+          h.webgl?.unmaskedRenderer ?? null,
+          h.webgl?.sceneHash ?? null,
+          h.audio?.hash ?? null,
+          h.fonts,
+        ]),
+      )
+    ).slice(0, 24);
+    const ip = await ipHashOf(info.ip);
+    const window = Math.floor(Date.now() / 1000 / windowSeconds);
+    const ttl = windowSeconds * 2;
+    // A pair counts once per window: the first time this IP shows this fingerprint.
+    const fresh = await store.claim(`fp:pair:${window}:${fp}:${ip}`, ttl);
+    const ips = fresh ? await countIn(store, `fp:ips:${window}:${fp}`, ttl, ipsPerFingerprint) : 0;
+    const fps = fresh ? await countIn(store, `fp:fps:${window}:${ip}`, ttl, fingerprintsPerIp) : 0;
+    const flags: Flag[] = [];
+    if (ips > ipsPerFingerprint)
+      flags.push({
+        id: "fingerprint-velocity",
+        category: "behavior",
+        weight: 0.5,
+        explain: `The same browser fingerprint came from more than ${ipsPerFingerprint} IPs in ${windowSeconds} s.`,
+        detail: `${ips} IPs`,
+      });
+    if (fps > fingerprintsPerIp)
+      flags.push({
+        id: "fingerprint-churn",
+        category: "behavior",
+        weight: 0.4,
+        explain: `More than ${fingerprintsPerIp} browser fingerprints came from this IP in ${windowSeconds} s.`,
+        detail: `${fps} fingerprints`,
+      });
+    return flags;
+  }
+
+  /** Keyed hash of the client a puzzle is bound to: its IP (when known) and User-Agent. */
+  const clientBind = async (info: RequestInfo) =>
+    (await hmacHex(key, `pow:${info.ip ?? ""}|${info.headers.get("user-agent") ?? ""}`)).slice(
+      0,
+      16,
+    );
+
+  /**
+   * A puzzle priced by risk: the request's own flags, how close the IP is to its rate, and,
+   * with `pow.busyPerMinute`, the server's load. A clean browser pays the base; a suspicious
+   * client up to ten times more, in PBKDF2 when `pow.algorithm` is "auto". Rate limiting by
+   * cost, not detection: a bot that pays still gets through to the rules.
+   */
+  async function issueChallenge(info: RequestInfo, rateShare: number) {
+    const pow = options.pow ?? {};
+    const base = pow.base ?? options.maxnumber ?? DEFAULT_MAX_NUMBER;
+    const risk = combine(
+      ...requestFlags(info, rules).map((f) => f.weight),
+      Math.min(1, rateShare) * 0.5,
+    );
+    const busy =
+      pow.busyPerMinute &&
+      (await countIn(store, `load:${minute()}`, 120, pow.busyPerMinute)) > pow.busyPerMinute
+        ? 2
+        : 1;
+    let maxnumber = Math.min(pow.max ?? base * 20, Math.round(base * (1 + 9 * risk) * busy));
+    const algorithm =
+      pow.algorithm === "PBKDF2" || (pow.algorithm === "auto" && risk >= 0.5)
+        ? "PBKDF2"
+        : "SHA-256";
+    // One PBKDF2 try at 5000 rounds takes about as long as a hundred SHA-256 tries in a page.
+    if (algorithm === "PBKDF2") maxnumber = Math.max(10, Math.ceil(maxnumber / 100));
+    const challenge = await createChallenge({
+      hmacKey: key,
+      maxnumber,
+      algorithm,
+      ...(pow.cost ? { cost: pow.cost } : {}),
+      ...(pow.bind !== false ? { bind: await clientBind(info) } : {}),
+    });
+    return { ...challenge, probes: await probesOf(challenge.salt) };
+  }
+
+  /** The probes of a puzzle: drawn from its salt with the key, so the page cannot choose them. */
+  const probesOf = async (salt: string) => probesFor(await hmacHex(key, `probes:${salt}`));
+
+  /** What the page's answers to its puzzle's probes say. */
+  async function probeFlags(salt: string, answers: unknown): Promise<Flag[]> {
+    const rule = (id: "probe-mismatch" | "probes-missing") =>
+      CROSS_CHECK_RULES.find((r) => r.id === id) as { weight: number; explain: string };
+    if (!Array.isArray(answers)) {
+      const r = rule("probes-missing");
+      return [{ id: "probes-missing", category: "automation", ...r, detail: "no answers" }];
+    }
+    const probes = await probesOf(salt);
+    const wrong = wrongProbes(probes, answers);
+    if (!wrong) return [];
+    const r = rule("probe-mismatch");
+    return [
+      {
+        id: "probe-mismatch",
+        category: "automation",
+        ...r,
+        detail: `${wrong} of ${probes.length} wrong`,
+      },
+    ];
+  }
+
   const fail = (status: number, reason: EndpointReason, error: string): EndpointResult => ({
     status,
     body: { error, reason },
@@ -508,7 +744,12 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       return fail(400, "malformed", "signals and solution required");
     if (!postOriginOk(info.headers.get("origin")))
       return fail(403, "refused", "origin not allowed");
-    const pow = await verifySolution(body.solution, key);
+    const pow = await verifySolution(
+      body.solution,
+      key,
+      Date.now(),
+      options.pow?.bind !== false ? { bind: await clientBind(info) } : {},
+    );
     if (!pow.ok)
       return fail(
         403,
@@ -524,7 +765,13 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     const behavior = body.behavior ?? null;
     const scored: ScoreResult = score({ signals: body.signals, behavior });
     const analysis = await analyzeRequest(info);
-    const flags = [...scored.flags, ...analysis.flags, ...crossCheckFlags(info, body.signals)];
+    const flags = [
+      ...scored.flags,
+      ...analysis.flags,
+      ...crossCheckFlags(info, body.signals),
+      ...(await velocityFlags(info, body.signals)),
+      ...(await probeFlags(pow.solution.salt, body.probes)),
+    ];
     const rulesBot = combine(...flags.map((f) => f.weight));
     const modelBot = rulesDecided(rulesBot)
       ? null
@@ -538,9 +785,15 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
         );
     const bot = Math.round(blend(rulesBot, modelBot) * 1000) / 1000;
     const verdict = verdictOf(bot);
-    // Where the slider's zone sits: chosen and signed here, so the page cannot pick it.
-    const zone = verdict === "unsure" ? Math.round(45 + Math.random() * 38) : undefined;
-    const { token, exp } = await issue(info, { verdict, bot, ...(zone ? { zone } : {}) });
+    // The visible challenge, chosen and signed here so the page cannot pick it: a slider and
+    // its zone, or targets to activate in order, in turn.
+    const visible = verdict === "unsure" ? visibleChallenge(options.visibleChallenges) : null;
+    const { token, exp } = await issue(info, {
+      verdict,
+      bot,
+      ...(visible?.kind === "slide" ? { zone: visible.zone } : {}),
+      ...(visible?.kind === "targets" ? { targets: visible.targets } : {}),
+    });
     return {
       status: 200,
       body: {
@@ -548,7 +801,8 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
         verdict,
         bot,
         exp,
-        ...(zone ? { zone } : {}),
+        ...(visible ? { challenge: visible } : {}),
+        ...(visible?.kind === "slide" ? { zone: visible.zone } : {}),
         flags: flags.map((f) => f.id),
         model: modelBot !== null,
       },
@@ -563,7 +817,11 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       Array.isArray(body.keyTimes) && body.keyTimes.length <= 500 && body.keyTimes.every(finite)
         ? body.keyTimes
         : null;
-    if (typeof body.token !== "string" || (!samples && !keyTimes))
+    const clicks =
+      Array.isArray(body.clicks) && body.clicks.length <= 10 && body.clicks.every(isClick)
+        ? body.clicks
+        : null;
+    if (typeof body.token !== "string" || (!samples && !keyTimes && !clicks))
       return fail(400, "malformed", "token and gesture required");
     const origin = info.headers.get("origin");
     if (!postOriginOk(origin)) return fail(403, "refused", "origin not allowed");
@@ -583,7 +841,10 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     const inZone = (percent: number) =>
       zone === undefined ? body.landed === true : percent >= zone && percent <= zone + ZONE_WIDTH;
     let passed: boolean;
-    if (samples && track) {
+    if (claims.targets) {
+      // A token signed for targets is passed by its targets only, not by a slide.
+      passed = !!clicks && judgeTargets(clicks, claims.targets);
+    } else if (samples && track) {
       const last = samples[samples.length - 1];
       const percent =
         last && finite(track.left) && finite(track.width) && track.width > 0
@@ -682,17 +943,13 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     if (route === "challenge" && request.method === "GET") {
       const limit = options.ratePerMinute;
       const rateKey = info.ip && `rate:challenge:${await ipHashOf(info.ip)}:${minute()}`;
-      if (limit && rateKey && (await countIn(store, rateKey, 120, limit)) > limit)
+      const count = limit && rateKey ? await countIn(store, rateKey, 120, limit) : 0;
+      if (limit && count > limit)
         return Response.json(
           { error: "too many challenges", reason: "rate-limited" },
           { status: 429, headers: { ...headers, "retry-after": "60" } },
         );
-      return json(
-        await createChallenge({
-          hmacKey: key,
-          ...(options.maxnumber ? { maxnumber: options.maxnumber } : {}),
-        }),
-      );
+      return json(await issueChallenge(info, limit ? count / limit : 0));
     }
     if ((route === "verify" || route === "slide") && request.method === "POST") {
       const text = await readCapped(request, maxBodyBytes);
@@ -771,6 +1028,15 @@ export function refusal(decision: Decision): Response {
 
 export * from "./adapters";
 export {
+  CHROMIUM_H2_SETTINGS,
+  type Http2Settings,
+  http2SettingsOffChromium,
+  ja4FitsModernBrowser,
+  ja4h,
+  parseJa4,
+  REFERENCES,
+} from "./fingerprints";
+export {
   combine,
   crossCheckFlags,
   HTTP_LIBRARIES,
@@ -789,4 +1055,13 @@ export {
   type ReplayStore,
   redisStore,
 } from "./store";
+export {
+  type AgentPolicy,
+  type AgentResult,
+  clearAgentDirectories,
+  directoryUrl,
+  hasAgentSignature,
+  jwkThumbprint,
+  verifyAgent,
+} from "./webbotauth";
 export { tokenFromRequest };

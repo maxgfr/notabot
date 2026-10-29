@@ -65,7 +65,10 @@ async function openSlider(page: Page) {
   await page.goto("/notabot/");
   await widget(page).locator("button.seal").click();
   await expect.poll(() => state(page), { timeout: 20_000 }).not.toBe("checking");
-  await widget(page).evaluate((el) => (el as unknown as { challenge(): void }).challenge());
+  await widget(page).evaluate((el) => {
+    el.setAttribute("challenges", "slide");
+    (el as unknown as { challenge(): void }).challenge();
+  });
   await expect.poll(() => state(page)).toBe("challenge");
 }
 
@@ -114,8 +117,13 @@ test("with the Worker: a signed puzzle, a signed token, and siteverify", async (
   page,
   request,
 }) => {
+  const verified = page.waitForResponse((r) => r.url().endsWith("/worker/verify"));
   await page.goto("/worker.html");
   await widget(page).locator("button.seal").click();
+  // A real browser answers the puzzle's probes right: no probe flag.
+  const flags = ((await (await verified).json()) as { flags: string[] }).flags;
+  expect(flags).not.toContain("probe-mismatch");
+  expect(flags).not.toContain("probes-missing");
   await expect.poll(() => state(page), { timeout: 20_000 }).not.toBe("checking");
   const result = await widget(page).evaluate((el) => {
     const r = (

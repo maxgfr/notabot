@@ -17,6 +17,10 @@ const workerEnv = {
   BASE_PATH: "/worker",
 };
 
+// The same Worker pinned to one visible challenge, for the e2e tests of each (same key).
+const slideEnv = { ...workerEnv, BASE_PATH: "/worker-slide", VISIBLE_CHALLENGES: "slide" };
+const targetsEnv = { ...workerEnv, BASE_PATH: "/worker-targets", VISIBLE_CHALLENGES: "targets" };
+
 const guard = createNotabot({ hmacKey: "dev", basePath: "/worker" });
 const protectedRoute = guard.protect(() => Response.json({ ok: true, message: "welcome" }));
 
@@ -31,6 +35,8 @@ Bun.serve({
     const url = new URL(req.url);
     if (url.pathname.startsWith("/mock/v1/")) return mockLlm(req, url.pathname);
     if (url.pathname.startsWith("/worker/")) return worker.fetch(req, workerEnv);
+    if (url.pathname.startsWith("/worker-slide/")) return worker.fetch(req, slideEnv);
+    if (url.pathname.startsWith("/worker-targets/")) return worker.fetch(req, targetsEnv);
     if (url.pathname === "/protected") return protectedRoute(req);
     if (!url.pathname.startsWith("/notabot/")) {
       if (url.pathname === "/") return Response.redirect("/notabot/", 302);

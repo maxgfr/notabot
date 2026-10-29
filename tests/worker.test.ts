@@ -19,8 +19,8 @@ const call = (path: string, init?: RequestInit, headers: Record<string, string> 
     env,
   );
 
-async function solved(): Promise<string> {
-  const c = (await (await call("/challenge")).json()) as Challenge;
+async function solved(headers: Record<string, string> = {}): Promise<string> {
+  const c = (await (await call("/challenge", undefined, headers)).json()) as Challenge;
   const number = (await search(c)) as number;
   return encodeSolution({
     algorithm: c.algorithm,
@@ -37,7 +37,13 @@ describe("example Cloudflare Worker", () => {
     const signals = realChrome();
     const res = await call(
       "/verify",
-      { method: "POST", body: JSON.stringify({ signals, solution: await solved() }) },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          signals,
+          solution: await solved(chromeHeaders(signals.env.userAgent)),
+        }),
+      },
       chromeHeaders(signals.env.userAgent),
     );
     expect(res.status).toBe(200);
@@ -68,7 +74,13 @@ describe("example Cloudflare Worker", () => {
     const signals = headlessChromium();
     const res = await call(
       "/verify",
-      { method: "POST", body: JSON.stringify({ signals, solution: await solved() }) },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          signals,
+          solution: await solved({ "user-agent": "python-requests/2.32" }),
+        }),
+      },
       { "user-agent": "python-requests/2.32" },
     );
     const body = (await res.json()) as { verdict: string; flags: string[] };

@@ -3,6 +3,7 @@
 // RequestInfo and the rules read only that.
 import type { Category, Flag } from "../score/index";
 import { osOf } from "../signals/util";
+import { type Http2Settings, http2SettingsOffChromium, ja4FitsModernBrowser } from "./fingerprints";
 
 /** What Cloudflare tells a Worker about the connection (`request.cf`), or a proxy's equivalent. */
 export interface NetworkInfo {
@@ -12,6 +13,11 @@ export interface NetworkInfo {
   timezone?: string;
   httpProtocol?: string;
   tlsVersion?: string;
+  /**
+   * The operating system the TCP SYN packet suggests (window size, TTL, options), as a proxy
+   * running p0f reports it. No JavaScript runtime sees TCP: pass it in `network` if you have it.
+   */
+  tcpOs?: string;
 }
 
 export interface RequestInfo {
@@ -23,8 +29,14 @@ export interface RequestInfo {
   /** "1.0", "1.1", "2" or "3" when known. */
   httpVersion?: string | null;
   network?: NetworkInfo | null;
-  /** A JA4 TLS fingerprint, when the platform or a proxy computes one. */
+  /** A JA4 TLS fingerprint, from Cloudflare's bot management or a proxy you trust. */
   ja4?: string | null;
+  /** The JA4H of the request (computed by the middleware before the rules run). */
+  ja4h?: string | null;
+  /** Header names in the order the client sent them (Node's `rawHeaders`), lowercase. */
+  headerOrder?: string[] | null;
+  /** The client's HTTP/2 SETTINGS, when the server speaks HTTP/2 itself (node:http2). */
+  http2Settings?: Http2Settings | null;
 }
 
 export interface RequestRule {
@@ -69,6 +81,27 @@ export const CROSS_CHECK_RULES = [
     explain: "The IP's time zone differs from the browser's (VPNs do this too).",
   },
   { id: "rate", weight: 0.4, explain: "More requests a minute from this IP than allowed." },
+  {
+    id: "probe-mismatch",
+    weight: 0.6,
+    explain:
+      "The page answered the puzzle's probes (DOMMatrix, Intl, CSS, native getters) as no real browser does.",
+  },
+  {
+    id: "probes-missing",
+    weight: 0.3,
+    explain: "The puzzle came with probes and the page posted no answers.",
+  },
+  {
+    id: "fingerprint-velocity",
+    weight: 0.5,
+    explain: "The same browser fingerprint came from many IPs in a short window.",
+  },
+  {
+    id: "fingerprint-churn",
+    weight: 0.4,
+    explain: "Many browser fingerprints came from one IP in a short window.",
+  },
 ] as const;
 
 function chromiumVersion(ua: string): number | null {
@@ -76,7 +109,7 @@ function chromiumVersion(ua: string): number | null {
   return m && !/Firefox\//.test(ua) ? Number(m[1]) : null;
 }
 
-function isModernBrowser(ua: string): boolean {
+export function isModernBrowser(ua: string): boolean {
   const chrome = chromiumVersion(ua);
   if (chrome !== null) return chrome >= 80;
   const firefox = /Firefox\/(\d+)/.exec(ua);
@@ -206,6 +239,27 @@ export const REQUEST_RULES: RequestRule[] = [
       return version?.startsWith("1") && chromiumVersion(header(i, "user-agent")) !== null
         ? `HTTP/${version}`
         : null;
+    },
+  },
+  {
+    id: "ja4-ua-mismatch",
+    weight: 0.7,
+    explain:
+      "The TLS handshake (JA4) is not a modern browser's (TLS 1.3, a server name, HTTP/2 or 3 offered) though the User-Agent claims one.",
+    test: (i) =>
+      isModernBrowser(header(i, "user-agent")) && ja4FitsModernBrowser(i.ja4) === false
+        ? ((i.ja4 ?? "").split("_")[0] ?? "")
+        : null,
+  },
+  {
+    id: "http2-settings-not-chromium",
+    weight: 0.5,
+    explain:
+      "The HTTP/2 SETTINGS differ from the ones every Chromium sends, though the User-Agent claims Chromium.",
+    test: (i) => {
+      if (!i.http2Settings || chromiumVersion(header(i, "user-agent")) === null) return null;
+      const off = http2SettingsOffChromium(i.http2Settings);
+      return off.length ? off.join(", ") : null;
     },
   },
   {
