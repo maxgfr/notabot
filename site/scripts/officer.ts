@@ -13,7 +13,7 @@ import {
   testConnection,
   visitorStore,
 } from "../../src/llm/index";
-import { blend } from "../../src/score/index";
+import { blend, rulesDecided } from "../../src/score/index";
 import { root, t } from "./common";
 
 interface Recommended {
@@ -23,6 +23,9 @@ interface Recommended {
 }
 
 type Mode = "key" | "proxy" | "local";
+
+/** How long the visitor waits for an answer before the page gives up. */
+const TIMEOUT_MS = 30_000;
 
 export interface OfficerContext {
   /** Features of the latest check, or null before any. */
@@ -46,11 +49,17 @@ export function mountOfficer(ctx: OfficerContext): void {
   const model = $<HTMLInputElement>("model");
   const modelList = $<HTMLDataListElement>("model-list");
   const apiKey = $<HTMLInputElement>("api-key");
+  const remember = $<HTMLInputElement>("remember-key");
   const hint = $("recommended-hint");
+  const cancel = $<HTMLButtonElement>("cancel-model");
   const store = visitorStore({
     catalogUrl: new URL(`${root}cdn/models.json`, location.href).href,
     storageKey: "notabot-site",
   });
+  let running: AbortController | null = null;
+  cancel.addEventListener("click", () =>
+    running?.abort(new DOMException("cancelled", "AbortError")),
+  );
   let recommended: Recommended[] = [];
   let mode: Mode = "key";
   let providersShown = -1;
@@ -94,6 +103,7 @@ export function mountOfficer(ctx: OfficerContext): void {
     if (state.draft.providerId) provider.value = state.draft.providerId;
     if (document.activeElement !== model) model.value = state.draft.model;
     if (document.activeElement !== apiKey) apiKey.value = state.apiKey;
+    remember.checked = state.draft.rememberKey;
     modelList.replaceChildren(
       ...state.models.slice(0, 300).map((m) => {
         const o = document.createElement("option");
@@ -143,12 +153,13 @@ export function mountOfficer(ctx: OfficerContext): void {
     if (mode === "local")
       return proxySettings(
         $<HTMLInputElement>("local-endpoint").value.trim(),
-        $<HTMLInputElement>("local-model").value.trim() || "llama3.2",
+        $<HTMLInputElement>("local-model").value.trim() || "gemma3:4b",
       );
     store.selectModel(model.value.trim());
     store.setApiKey(apiKey.value.trim());
     if (!store.getState().canSave) return null;
-    store.setRememberKey(true);
+    // Kept for the page only, unless the visitor asked to remember it.
+    store.setRememberKey(remember.checked);
     const saved = await store.save();
     return saved.ok ? store.settings() : null;
   }
@@ -171,26 +182,41 @@ export function mountOfficer(ctx: OfficerContext): void {
     say(t("officer.asking", { model: name }));
     const ask = $<HTMLButtonElement>("ask-model");
     ask.disabled = true;
+    cancel.hidden = false;
+    running = new AbortController();
     try {
-      const result = await classify(s, features);
+      const result = await classify(s, features, {
+        signal: running.signal,
+        timeoutMs: TIMEOUT_MS,
+      });
       $("answer").textContent = result.text || "—";
       if (!result.verdict) return say(t("officer.unreadable"), "bad");
-      const bot = blend(ctx.rulesBot() ?? 0, botProbabilityOf(result.verdict));
+      const rulesBot = ctx.rulesBot() ?? 0;
+      const bot = blend(rulesBot, botProbabilityOf(result.verdict));
       ctx.onVerdict(bot, result.verdict.verdict);
+      const line = t("officer.verdict", {
+        model: name,
+        verdict: t(`stamp.${result.verdict.verdict}`),
+        c: Math.round(result.verdict.confidence * 100),
+        ms: result.ms,
+        p: Math.round(bot * 100),
+      });
       say(
-        t("officer.verdict", {
-          model: name,
-          verdict: t(`stamp.${result.verdict.verdict}`),
-          c: Math.round(result.verdict.confidence * 100),
-          ms: result.ms,
-          p: Math.round(bot * 100),
-        }),
+        rulesDecided(rulesBot)
+          ? `${t("officer.skipped", { p: Math.round(rulesBot * 100) })} ${line}`
+          : line,
         result.verdict.verdict === "bot" ? "bad" : "ok",
       );
     } catch (error) {
-      say(describeError(error, s.apiKey).message, "bad");
+      const reason = running.signal.reason as DOMException | undefined;
+      if (reason?.name === "AbortError") say(t("officer.cancelled"));
+      else if (error instanceof DOMException && error.name === "TimeoutError")
+        say(t("officer.timeout", { s: TIMEOUT_MS / 1000 }), "bad");
+      else say(describeError(error, s.apiKey).message, "bad");
     } finally {
       ask.disabled = false;
+      cancel.hidden = true;
+      running = null;
     }
   });
 }

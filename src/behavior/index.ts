@@ -57,6 +57,8 @@ export interface BehaviorFeatures extends Trajectory {
   untrusted: number;
   inputWithoutKeys: number;
   focusChanges: number;
+  /** Time since the tracker started (the trajectory's own `durationMs` is the strokes' span). */
+  sessionMs: number;
   firstInteractionMs: number | null;
   coalescedMean: number | null;
   keyDwellMean: number | null;
@@ -192,7 +194,7 @@ export function behaviorFeatures(log: BehaviorLog, now = performance.now()): Beh
   const coalesced = moves.map((m) => m.coalesced);
   return {
     ...analyzeTrajectory(moves),
-    durationMs: Math.round(now - log.start),
+    sessionMs: Math.round(now - log.start),
     moves: moves.length,
     clicks: log.clicks,
     keys: log.keys.length,

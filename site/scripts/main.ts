@@ -1,6 +1,7 @@
 import type { CheckResult } from "../../src/index";
-import { type Features, toFeatures } from "../../src/llm/index";
-import { RULES, type ScoreResult, score } from "../../src/score/index";
+import { classifyLocal } from "../../src/llm/local";
+import { type Features, toFeatures } from "../../src/llm/prompt";
+import { RULES, type ScoreResult, score, verdictOf } from "../../src/score/index";
 import { collect } from "../../src/signals/index";
 import type { NotabotSignals } from "../../src/signals/types";
 import { sharedTracker } from "../../src/widget/element";
@@ -100,6 +101,16 @@ function renderReport(r: ScoreResult, bot: number): void {
       return li;
     }),
   );
+  const f = features();
+  if (f) {
+    const local = classifyLocal(f);
+    $("local-opinion").textContent = local.verdict.reasons.length
+      ? t("report.local", {
+          p: Math.round(local.bot * 100),
+          reasons: local.verdict.reasons.join(", "),
+        })
+      : t("report.localNone");
+  }
 }
 
 function press(kind: "human" | "unsure" | "bot" | "error"): void {
@@ -188,7 +199,12 @@ async function start(): Promise<void> {
   mountOfficer({
     features,
     rulesBot: () => finalBot ?? rules?.bot ?? null,
+    // The officer's blended verdict is the passport's: stamp, MRZ and report follow it.
     onVerdict: (bot) => {
+      finalBot = bot;
+      const verdict = verdictOf(bot);
+      press(verdict);
+      if (signals) fillPassport(signals, t(`stamp.${verdict}`));
       if (rules) renderReport(rules, bot);
     },
   });

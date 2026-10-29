@@ -1,0 +1,216 @@
+{
+  "id": "brave-automated",
+  "label": "bot",
+  "source": "Installed Brave, driven by Playwright (headless)",
+  "signals": {
+    "version": 1,
+    "collectedAt": "2026-10-29T14:07:44.764Z",
+    "durationMs": 143,
+    "env": {
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "uaData": {
+        "brands": ["Not:A-Brand 8", "Chromium 156", "Brave 156"],
+        "mobile": false,
+        "platform": "macOS",
+        "platformVersion": "27.2.0",
+        "architecture": "arm",
+        "bitness": "64",
+        "model": "",
+        "fullVersionList": ["Not:A-Brand 8.0.0.0", "Chromium 156.0.0.0", "Brave 156.0.0.0"]
+      },
+      "platform": "MacIntel",
+      "vendor": "Google Inc.",
+      "language": "fr-FR",
+      "languages": ["fr-FR"],
+      "timezone": "Europe/Paris",
+      "timezoneOffset": -60,
+      "timezoneOffsetFromName": -60,
+      "intlLocale": "fr",
+      "screen": {
+        "width": 1366,
+        "height": 768,
+        "availWidth": 1366,
+        "availHeight": 768,
+        "colorDepth": 24,
+        "pixelRatio": 1
+      },
+      "window": {
+        "innerWidth": 1280,
+        "innerHeight": 720,
+        "outerWidth": 1285,
+        "outerHeight": 722
+      },
+      "hardwareConcurrency": 5,
+      "deviceMemory": 8,
+      "maxTouchPoints": 0,
+      "connection": null,
+      "cookieEnabled": true,
+      "doNotTrack": null,
+      "globalPrivacyControl": true,
+      "pdfViewerEnabled": true,
+      "storageQuotaMB": 2048,
+      "codecs": {
+        "h264": "probably",
+        "hevc": "probably",
+        "vp9": "probably",
+        "av1": "probably",
+        "theora": "no",
+        "aac": "probably",
+        "opus": "probably",
+        "flac": "probably",
+        "mp3": "probably"
+      },
+      "mediaQueries": {
+        "darkScheme": false,
+        "reducedMotion": false,
+        "moreContrast": false,
+        "forcedColors": false,
+        "hoverNone": false,
+        "pointerCoarse": false,
+        "hdr": false,
+        "p3": false
+      },
+      "mediaDevices": {
+        "audioinput": 1,
+        "audiooutput": 1,
+        "videoinput": 1
+      },
+      "permissions": {
+        "notifications": "prompt",
+        "geolocation": "prompt",
+        "camera": "prompt",
+        "microphone": "prompt",
+        "persistent-storage": "prompt"
+      },
+      "evalLength": 33,
+      "errorFingerprint": "Cannot read properties of null (reading 'x')"
+    },
+    "hardware": {
+      "canvas": {
+        "hash": "redacted",
+        "stable": true
+      },
+      "webgl": {
+        "version": "WebGL 1.0 (OpenGL ES 2.0 Chromium)",
+        "vendor": "WebKit",
+        "renderer": "WebKit WebGL",
+        "unmaskedVendor": "Google Inc. (Apple)",
+        "unmaskedRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+        "shadingLanguage": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
+        "maxTextureSize": 16384,
+        "extensions": 39,
+        "sceneHash": "redacted"
+      },
+      "webgpu": {
+        "vendor": "apple",
+        "architecture": "metal-3"
+      },
+      "audio": {
+        "hash": "redacted",
+        "sum": 0
+      },
+      "fonts": [
+        "font-1",
+        "font-2",
+        "font-3",
+        "font-4",
+        "font-5",
+        "font-6",
+        "font-7",
+        "font-8",
+        "font-9",
+        "font-10",
+        "font-11",
+        "font-12",
+        "font-13",
+        "font-14",
+        "font-15",
+        "font-16",
+        "font-17"
+      ]
+    },
+    "automation": {
+      "webdriver": false,
+      "webdriverOwnProperty": false,
+      "headlessUserAgent": true,
+      "headlessBrand": false,
+      "chromeObjectMissing": false,
+      "plugins": 7,
+      "mimeTypes": 2,
+      "pluginsGenuine": true,
+      "notificationPermissionMismatch": false,
+      "automationGlobals": [],
+      "outerSizeZero": false,
+      "emptyLanguages": false,
+      "softwareRenderer": false,
+      "engineClaimed": "blink",
+      "engineObserved": "blink"
+    },
+    "tampering": {
+      "lies": [],
+      "checked": 26,
+      "toStringPatched": false
+    },
+    "page": {
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "platform": "MacIntel",
+      "languages": ["fr-FR"],
+      "hardwareConcurrency": 5,
+      "deviceMemory": 8,
+      "webdriver": false,
+      "timezone": "Europe/Paris",
+      "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+    },
+    "iframe": {
+      "snapshot": {
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+        "platform": "MacIntel",
+        "languages": ["fr-FR"],
+        "hardwareConcurrency": 5,
+        "deviceMemory": 8,
+        "webdriver": false,
+        "timezone": "Europe/Paris",
+        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "mismatches": []
+    },
+    "worker": {
+      "snapshot": {
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+        "platform": "MacIntel",
+        "languages": ["fr-FR"],
+        "hardwareConcurrency": 5,
+        "deviceMemory": 8,
+        "webdriver": null,
+        "timezone": "Europe/Paris",
+        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "mismatches": []
+    },
+    "errors": {}
+  },
+  "behavior": {
+    "samples": 0,
+    "durationMs": 0,
+    "speedMean": 0,
+    "speedCv": 0,
+    "accelCv": 0,
+    "straightness": 0,
+    "angleEntropy": 0,
+    "jitter": 0,
+    "stepCv": 0,
+    "sessionMs": 144,
+    "moves": 0,
+    "clicks": 0,
+    "keys": 0,
+    "scrolls": 0,
+    "untrusted": 0,
+    "inputWithoutKeys": 0,
+    "focusChanges": 0,
+    "firstInteractionMs": null,
+    "coalescedMean": null,
+    "keyDwellMean": null,
+    "keyDwellCv": null,
+    "keyFlightCv": null
+  }
+}

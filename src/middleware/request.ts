@@ -43,6 +43,34 @@ export const HTTP_LIBRARIES =
 const HOSTING =
   /amazon|aws|google cloud|google llc|microsoft|azure|ovh|hetzner|digitalocean|linode|akamai|oracle|alibaba|tencent|scaleway|contabo|vultr|m247|datacamp|leaseweb|choopa/i;
 
+/** Whether an AS organisation name is a hosting provider's rather than an access provider's. */
+export function isHostingNetwork(asOrganization: string): boolean {
+  return HOSTING.test(asOrganization);
+}
+
+/**
+ * Flags the server raises outside the rules: the request against the page, and the rate. Their
+ * ids, weights and explanations, for the model's glossary and the allowed ids.
+ */
+export const CROSS_CHECK_RULES = [
+  {
+    id: "server-user-agent",
+    weight: 0.8,
+    explain: "The User-Agent header differs from navigator.userAgent.",
+  },
+  {
+    id: "server-language",
+    weight: 0.3,
+    explain: "Accept-Language differs from navigator.languages.",
+  },
+  {
+    id: "server-timezone",
+    weight: 0.35,
+    explain: "The IP's time zone differs from the browser's (VPNs do this too).",
+  },
+  { id: "rate", weight: 0.4, explain: "More requests a minute from this IP than allowed." },
+] as const;
+
 function chromiumVersion(ua: string): number | null {
   const m = /(?:Chrome|Chromium|Edg|OPR)\/(\d+)/.exec(ua);
   return m && !/Firefox\//.test(ua) ? Number(m[1]) : null;
@@ -185,7 +213,7 @@ export const REQUEST_RULES: RequestRule[] = [
     weight: 0.5,
     explain: "The IP belongs to a hosting provider, not an internet access provider.",
     test: (i) =>
-      i.network?.asOrganization && HOSTING.test(i.network.asOrganization)
+      i.network?.asOrganization && isHostingNetwork(i.network.asOrganization)
         ? i.network.asOrganization
         : null,
   },
@@ -223,33 +251,26 @@ export function crossCheckFlags(
   signals: { env: { userAgent: string; languages: string[]; timezone: string } },
 ): Flag[] {
   const flags: Flag[] = [];
-  const add = (id: string, weight: number, explain: string, detail: string) =>
-    flags.push({ id, category: "consistency", weight, explain, detail });
+  const add = (id: (typeof CROSS_CHECK_RULES)[number]["id"], detail: string) => {
+    const rule = CROSS_CHECK_RULES.find((r) => r.id === id);
+    if (rule)
+      flags.push({
+        id,
+        category: "consistency",
+        weight: rule.weight,
+        explain: rule.explain,
+        detail,
+      });
+  };
   const ua = header(info, "user-agent");
-  if (ua && ua !== signals.env.userAgent)
-    add(
-      "server-user-agent",
-      0.8,
-      "The User-Agent header differs from navigator.userAgent.",
-      ua.slice(0, 80),
-    );
+  if (ua && ua !== signals.env.userAgent) add("server-user-agent", ua.slice(0, 80));
   const lang = header(info, "accept-language").split(",")[0]?.split(";")[0]?.trim();
   const first = signals.env.languages[0];
   if (lang && first && lang.toLowerCase() !== first.toLowerCase())
-    add(
-      "server-language",
-      0.3,
-      "Accept-Language differs from navigator.languages.",
-      `${lang} vs ${first}`,
-    );
+    add("server-language", `${lang} vs ${first}`);
   const tz = info.network?.timezone;
   if (tz && signals.env.timezone && tz !== signals.env.timezone)
-    add(
-      "server-timezone",
-      0.35,
-      "The IP's time zone differs from the browser's (VPNs do this too).",
-      `${tz} vs ${signals.env.timezone}`,
-    );
+    add("server-timezone", `${tz} vs ${signals.env.timezone}`);
   return flags;
 }
 

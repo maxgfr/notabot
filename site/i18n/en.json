@@ -48,10 +48,10 @@
   "officer.provider": "Provider",
   "officer.model": "Model",
   "officer.key": "API key",
-  "officer.keyHint": "Kept on this device only, encrypted in IndexedDB, and sent to that provider alone.",
+  "officer.keyHint": "Sent to that provider alone. Forgotten when you leave, unless you tick the box: then kept on this device, encrypted in IndexedDB.",
   "officer.endpoint": "OpenAI-compatible endpoint",
   "officer.proxyHint": "Your Worker or proxy holds the key; this page never does.",
-  "officer.localHint": "Run OLLAMA_ORIGINS=* ollama serve so the page may call it.",
+  "officer.localHint": "Run OLLAMA_ORIGINS=https://maxgfr.github.io ollama serve so this page, and only this one, may call it.",
   "officer.test": "Test the connection",
   "officer.ask": "Ask for a verdict",
   "officer.needCheck": "Run the check at the top first: the officer needs the papers.",
@@ -104,5 +104,12 @@
   "papers.took": "Collected in {ms} ms.",
   "officer.loadingProviders": "Loading providers…",
   "embed.middlewareTitle": "A middleware on your server",
-  "embed.middlewareHint": "Validates the request itself (headers a browser always sends, client hints, HTTP libraries, protocol, network) and the token: signed, bound to its browser and IP, used once. Express, Hono, or any Fetch server (Next.js, Bun, Workers)."
+  "embed.middlewareHint": "Validates the request itself (headers a browser always sends, client hints, HTTP libraries, protocol, network) and the token: signed, bound to its browser and IP, used once. Express, Hono, or any Fetch server (Next.js, Bun, Workers).",
+  "officer.remember": "Remember the key on this device",
+  "officer.cancel": "Cancel",
+  "officer.cancelled": "Cancelled.",
+  "officer.timeout": "No answer within {s} s: the model is too slow or unreachable.",
+  "officer.skipped": "The rules decided alone ({p} %): a second opinion would not change the verdict, but here is what the model says.",
+  "report.local": "Local second opinion (a logistic regression trained on the benchmark, no key, no network): bot probability {p} %, from {reasons}.",
+  "report.localNone": "Local second opinion: nothing it learned to weigh."
 }

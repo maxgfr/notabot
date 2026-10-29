@@ -58,6 +58,25 @@ console.log("node imports ok");
   );
   await $`node run.mjs`.cwd(dir);
 
+  // The server half must not drag the AI stack in: follow the middleware's imports.
+  const lib = join(dir, "node_modules/notabot/dist/lib");
+  const seen = new Set<string>();
+  const heavy: string[] = [];
+  const walk = async (file: string) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const text = await Bun.file(file).text();
+    for (const [, spec] of text.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) {
+      if (!spec) continue;
+      if (spec.startsWith(".")) await walk(resolve(join(file, ".."), spec));
+      else if (/^(ai|llm-connect|llm-models|@ai-sdk\/)/.test(spec)) heavy.push(`${file}: ${spec}`);
+    }
+  };
+  await walk(join(lib, "middleware/index.js"));
+  if (heavy.length)
+    throw new Error(`notabot/middleware imports the AI stack:\n${heavy.join("\n")}`);
+  console.log(`middleware imports no AI package (${seen.size} files)`);
+
   await Bun.write(
     join(dir, "types.ts"),
     `import { check, collect, score, trackBehavior, type CheckResult, type NotabotSignals, type ScoreResult, type Verdict } from "notabot";

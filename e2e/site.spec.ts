@@ -45,6 +45,9 @@ test("the AI officer gets numbers and fixed words only, and answers through the 
   await page.locator("#ask-model").click();
   await expect(page.locator("#officer-status")).toContainText("mock", { timeout: 15_000 });
   await expect(page.locator("#answer")).toContainText('"verdict":"bot"');
+  await expect(page.locator("#cancel-model")).toBeHidden();
+  // The local regression gave its opinion too, with no key and no network.
+  await expect(page.locator("#local-opinion")).toContainText("%");
   const sent = await page.evaluate(() => fetch("/mock/v1/last").then((r) => r.json()));
   const user = String(sent.messages.at(-1).content);
   const ua = await page.evaluate(() => navigator.userAgent);
