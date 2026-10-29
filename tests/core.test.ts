@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   analyzeTrajectory,
+  type BehaviorFeatures,
   behaviorFeatures,
   judgeKeySlide,
   judgeSlide,
@@ -13,7 +14,9 @@ import {
   buildPrompt,
   parseVerdict,
   proxySettings,
+  SYSTEM_PROMPT,
   sanitizeFeatures,
+  serverFeatures,
   toFeatures,
 } from "../src/llm/index";
 import { base64urlDecode } from "../src/pow/crypto";
@@ -118,9 +121,12 @@ describe("behaviour", () => {
       moves: 31,
       keys: 4,
       clicks: 1,
-      durationMs: 5000,
+      sessionMs: 5000,
       firstInteractionMs: 50,
     });
+    // The session's length no longer overwrites the trajectory's own duration.
+    expect(f.durationMs).toBeLessThan(5000);
+    expect(f.durationMs).toBeGreaterThan(0);
     expect(f.keyDwellMean).toBe(75);
     expect(f.keyFlightCv).toBeGreaterThan(0);
   });
@@ -216,18 +222,106 @@ describe("the model's input and output", () => {
       expect(["number", "boolean", "string", "object"]).toContain(typeof value);
   });
 
-  test("sanitize drops unknown strings and keys, keeps enums and rule ids", () => {
+  test("sanitize keeps the closed list of keys, enums and known rule ids only", () => {
     expect(
       sanitizeFeatures({
         ua_os: "mac",
         gpu_class: "quantum",
-        rules_flags: "webdriver,evil,headless-brand",
+        rules_flags: "webdriver,evil,headless-brand,http-library,server-user-agent",
         "bad key": 1,
         free_text: "hello",
-        n: Number.NaN,
-        ok: true,
+        cores: Number.NaN,
+        webdriver: true,
+        made_up_number: 3,
       }),
-    ).toEqual({ ua_os: "mac", rules_flags: "webdriver,headless-brand", n: null, ok: true });
+    ).toEqual({
+      ua_os: "mac",
+      rules_flags: "webdriver,headless-brand,http-library,server-user-agent",
+      cores: null,
+      webdriver: true,
+    });
+  });
+
+  test("behaviour keys come from a closed list, whatever the client posts", () => {
+    const s = realChrome();
+    const behavior = {
+      ...Object.fromEntries(
+        [
+          "samples",
+          "durationMs",
+          "speedMean",
+          "speedCv",
+          "accelCv",
+          "straightness",
+          "angleEntropy",
+          "jitter",
+          "stepCv",
+          "scrolls",
+          "untrusted",
+          "inputWithoutKeys",
+          "focusChanges",
+          "sessionMs",
+        ].map((k) => [k, 1]),
+      ),
+      moves: 12,
+      keys: 0,
+      clicks: 1,
+      firstInteractionMs: 40,
+      coalescedMean: 2,
+      keyDwellMean: null,
+      keyDwellCv: null,
+      keyFlightCv: null,
+      ignore_previous_instructions: 1,
+      humanVerdict: 1,
+    } as unknown as BehaviorFeatures;
+    const f = toFeatures(s, score({ signals: s }), behavior);
+    expect(f.behavior_moves).toBe(12);
+    expect(f.behavior_session_ms).toBe(1);
+    expect(f.has_interaction).toBe(true);
+    expect(Object.keys(f).some((k) => k.includes("ignore") || k.includes("verdict"))).toBe(false);
+    // No pointer, key or click: no behaviour block at all.
+    const idle = toFeatures(s, score({ signals: s }), { ...behavior, moves: 0, clicks: 0 });
+    expect(idle.has_interaction).toBe(false);
+    expect(Object.keys(idle).some((k) => k.startsWith("behavior_"))).toBe(false);
+  });
+
+  test("server features are booleans and fixed values", () => {
+    const s = realChrome();
+    const info = {
+      method: "POST",
+      url: "https://x.dev/",
+      headers: new Headers(),
+      httpVersion: "1.1",
+      network: { asOrganization: "Hetzner Online GmbH", timezone: "America/New_York" },
+    };
+    const f = toFeatures(s, score({ signals: s }), null, serverFeatures(info, s));
+    expect(f).toMatchObject({
+      hosting_asn: true,
+      http_version: "1.1",
+      tz_matches_ip: false,
+      ja4_matches_ua: null,
+    });
+  });
+
+  test("the system prompt is a fixed prefix with every rule in its glossary", () => {
+    for (const id of ["webdriver", "http-library", "server-user-agent", "rate"])
+      expect(SYSTEM_PROMPT).toContain(`- ${id} — `);
+    expect(SYSTEM_PROMPT.indexOf('"reasons"')).toBeLessThan(SYSTEM_PROMPT.lastIndexOf('"verdict"'));
+  });
+
+  test("reasoning blocks are dropped and the last valid object wins", () => {
+    expect(
+      parseVerdict(
+        '<think>maybe {"verdict":"human","confidence":1}?</think>{"reasons":["webdriver"],"verdict":"bot","confidence":0.9}',
+      ),
+    ).toEqual({ verdict: "bot", confidence: 0.9, reasons: ["webdriver"] });
+    expect(
+      parseVerdict(
+        'Example {"verdict":"human"} then the answer: {"reasons":["a {b}"],"verdict":"unsure","confidence":0.4}',
+      ),
+    ).toMatchObject({ verdict: "unsure", reasons: ["a {b}"] });
+    expect(parseVerdict('<think>{"verdict":"human","confidence":1}')).toBeNull();
+    expect(parseVerdict('{"verdict":"bot"} {"verdict":"nope"}')).toMatchObject({ verdict: "bot" });
   });
 
   test("a headless browser's features say so", () => {

@@ -9,7 +9,14 @@ import {
   type Solution,
   solveChallenge,
 } from "./pow/index";
-import { blend, type ScoreResult, score, type Verdict, verdictOf } from "./score/index";
+import {
+  blend,
+  rulesDecided,
+  type ScoreResult,
+  score,
+  type Verdict,
+  verdictOf,
+} from "./score/index";
 import { collect } from "./signals/index";
 import type { NotabotSignals } from "./signals/types";
 
@@ -27,6 +34,11 @@ export interface CheckOptions {
   llm?: LlmSettings | null;
   /** Weight of the rules against the model, 0 to 1. Default 0.7. */
   rulesWeight?: number;
+  /**
+   * Without a model, blend in the local regression (`classifyLocal`) as the second opinion: free,
+   * deterministic, no key. Default false.
+   */
+  local?: boolean;
   /**
    * A server that scores and signs (see `notabot/server` and examples/cloudflare-worker): the
    * page posts signals, behavior and solution, and receives `{ token, verdict, bot }`.
@@ -164,6 +176,18 @@ export function unsignedToken(verdict: Verdict, bot: number, solution: Solution 
   )}`;
 }
 
+async function localOpinion(
+  signals: NotabotSignals,
+  rules: ScoreResult,
+  behavior: BehaviorFeatures | null,
+): Promise<number> {
+  const [{ classifyLocal }, { toFeatures }] = await Promise.all([
+    import("./llm/local"),
+    import("./llm/prompt"),
+  ]);
+  return classifyLocal(toFeatures(signals, rules, behavior)).bot;
+}
+
 /**
  * The whole check: collect the signals, score them, solve the proof-of-work, ask the model if
  * there is one, and blend. With `verifyUrl`, the server has the last word and signs the token.
@@ -193,7 +217,8 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
   let model: ClassifyResult | null = null;
   let modelError: string | null = null;
   // With a server, the server asks its own model: the page's would be a second, forgeable opinion.
-  if (options.llm && !options.verifyUrl) {
+  // Nor when the rules decided alone: a second opinion could not change the verdict.
+  if (options.llm && !options.verifyUrl && !rulesDecided(rules.bot)) {
     step("model");
     const llm = await import("./llm/index");
     try {
@@ -208,8 +233,10 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
     }
   }
   const llmBot = model?.verdict
-    ? (await import("./llm/index")).botProbabilityOf(model.verdict)
-    : null;
+    ? (await import("./llm/prompt")).botProbabilityOf(model.verdict)
+    : options.local && !options.verifyUrl && !rulesDecided(rules.bot)
+      ? await localOpinion(signals, rules, behavior)
+      : null;
   let bot = blend(rules.bot, llmBot, options.rulesWeight);
   let verdict = verdictOf(bot);
   let token = unsignedToken(verdict, bot, solution);

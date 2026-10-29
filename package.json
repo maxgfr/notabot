@@ -110,7 +110,9 @@
     "release": "semantic-release",
     "test:package": "bun run build:lib && bun scripts/check-package.ts",
     "test:live": "playwright test -c playwright.live.config.ts",
-    "test:package:published": "bun scripts/check-package.ts --published"
+    "test:package:published": "bun scripts/check-package.ts --published",
+    "bench": "bun scripts/bench.ts",
+    "capture": "bun scripts/capture.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.91",

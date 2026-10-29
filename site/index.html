@@ -101,6 +101,7 @@
         </div>
         <div class="report-sheet">
           <p class="report-total" id="report-total">{{report.pending}}</p>
+          <p class="hint" id="local-opinion"></p>
           <ol class="rules" id="rules"></ol>
         </div>
       </section>
@@ -127,6 +128,7 @@
               <p class="hint" id="recommended-hint"></p>
               <label for="api-key">{{officer.key}}</label>
               <input id="api-key" type="password" autocomplete="off" spellcheck="false" />
+              <label class="check"><input type="checkbox" id="remember-key" /> {{officer.remember}}</label>
               <p class="hint">{{officer.keyHint}}</p>
             </div>
             <div class="mode-panel" data-mode="proxy" hidden>
@@ -140,12 +142,13 @@
               <label for="local-endpoint">{{officer.endpoint}}</label>
               <input id="local-endpoint" type="url" value="http://localhost:11434/v1" spellcheck="false" />
               <label for="local-model">{{officer.model}}</label>
-              <input id="local-model" value="llama3.2" spellcheck="false" />
+              <input id="local-model" value="gemma3:4b" spellcheck="false" />
               <p class="hint">{{officer.localHint}}</p>
             </div>
             <div class="actions">
               <button type="button" class="button quiet" id="test-model">{{officer.test}}</button>
               <button type="submit" class="button" id="ask-model">{{officer.ask}}</button>
+              <button type="button" class="button quiet" id="cancel-model" hidden>{{officer.cancel}}</button>
             </div>
             <p class="status" id="officer-status" role="status"></p>
           </form>

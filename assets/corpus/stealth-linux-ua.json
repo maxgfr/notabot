@@ -1,0 +1,222 @@
+{
+  "id": "stealth-linux-ua",
+  "label": "bot",
+  "source": "Chromium, AutomationControlled off, Linux user agent",
+  "signals": {
+    "version": 1,
+    "collectedAt": "2026-10-29T14:07:42.180Z",
+    "durationMs": 73,
+    "env": {
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+      "uaData": {
+        "brands": ["Not:A-Brand 8", "Chromium 156", "HeadlessChrome 156"],
+        "mobile": false,
+        "platform": "Linux",
+        "platformVersion": "",
+        "architecture": "x86",
+        "bitness": "64",
+        "model": "",
+        "fullVersionList": [
+          "Not:A-Brand 8.0.0.0",
+          "Chromium 156.0.8078.4",
+          "HeadlessChrome 156.0.8078.4"
+        ]
+      },
+      "platform": "MacIntel",
+      "vendor": "Google Inc.",
+      "language": "en-US",
+      "languages": ["en-US"],
+      "timezone": "Europe/Paris",
+      "timezoneOffset": -60,
+      "timezoneOffsetFromName": -60,
+      "intlLocale": "en-US",
+      "screen": {
+        "width": 1280,
+        "height": 720,
+        "availWidth": 1280,
+        "availHeight": 720,
+        "colorDepth": 24,
+        "pixelRatio": 1
+      },
+      "window": {
+        "innerWidth": 1280,
+        "innerHeight": 720,
+        "outerWidth": 1280,
+        "outerHeight": 720
+      },
+      "hardwareConcurrency": 10,
+      "deviceMemory": 16,
+      "maxTouchPoints": 0,
+      "connection": {
+        "effectiveType": "4g",
+        "rtt": 0,
+        "downlink": 10,
+        "saveData": false
+      },
+      "cookieEnabled": true,
+      "doNotTrack": null,
+      "globalPrivacyControl": null,
+      "pdfViewerEnabled": false,
+      "storageQuotaMB": 10246,
+      "codecs": {
+        "h264": "probably",
+        "hevc": "no",
+        "vp9": "probably",
+        "av1": "probably",
+        "theora": "no",
+        "aac": "probably",
+        "opus": "probably",
+        "flac": "probably",
+        "mp3": "probably"
+      },
+      "mediaQueries": {
+        "darkScheme": false,
+        "reducedMotion": false,
+        "moreContrast": false,
+        "forcedColors": false,
+        "hoverNone": false,
+        "pointerCoarse": false,
+        "hdr": false,
+        "p3": false
+      },
+      "mediaDevices": {
+        "audioinput": 1,
+        "audiooutput": 1,
+        "videoinput": 1
+      },
+      "permissions": {
+        "notifications": "prompt",
+        "geolocation": "prompt",
+        "camera": "prompt",
+        "microphone": "prompt",
+        "persistent-storage": "prompt"
+      },
+      "evalLength": 33,
+      "errorFingerprint": "Cannot read properties of null (reading 'x')"
+    },
+    "hardware": {
+      "canvas": {
+        "hash": "redacted",
+        "stable": true
+      },
+      "webgl": {
+        "version": "WebGL 1.0 (OpenGL ES 2.0 Chromium)",
+        "vendor": "WebKit",
+        "renderer": "WebKit WebGL",
+        "unmaskedVendor": "Google Inc. (Google)",
+        "unmaskedRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+        "shadingLanguage": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
+        "maxTextureSize": 8192,
+        "extensions": 35,
+        "sceneHash": "redacted"
+      },
+      "webgpu": null,
+      "audio": {
+        "hash": "redacted",
+        "sum": 0
+      },
+      "fonts": [
+        "font-1",
+        "font-2",
+        "font-3",
+        "font-4",
+        "font-5",
+        "font-6",
+        "font-7",
+        "font-8",
+        "font-9",
+        "font-10",
+        "font-11",
+        "font-12",
+        "font-13",
+        "font-14",
+        "font-15",
+        "font-16",
+        "font-17"
+      ]
+    },
+    "automation": {
+      "webdriver": false,
+      "webdriverOwnProperty": false,
+      "headlessUserAgent": false,
+      "headlessBrand": true,
+      "chromeObjectMissing": true,
+      "plugins": 0,
+      "mimeTypes": 0,
+      "pluginsGenuine": true,
+      "notificationPermissionMismatch": true,
+      "automationGlobals": [],
+      "outerSizeZero": false,
+      "emptyLanguages": false,
+      "softwareRenderer": true,
+      "engineClaimed": "blink",
+      "engineObserved": "blink"
+    },
+    "tampering": {
+      "lies": [],
+      "checked": 26,
+      "toStringPatched": false
+    },
+    "page": {
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+      "platform": "MacIntel",
+      "languages": ["en-US"],
+      "hardwareConcurrency": 10,
+      "deviceMemory": 16,
+      "webdriver": false,
+      "timezone": "Europe/Paris",
+      "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+    },
+    "iframe": {
+      "snapshot": {
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+        "platform": "MacIntel",
+        "languages": ["en-US"],
+        "hardwareConcurrency": 10,
+        "deviceMemory": 16,
+        "webdriver": false,
+        "timezone": "Europe/Paris",
+        "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+      },
+      "mismatches": []
+    },
+    "worker": {
+      "snapshot": {
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+        "platform": "MacIntel",
+        "languages": ["en-US"],
+        "hardwareConcurrency": 10,
+        "deviceMemory": 16,
+        "webdriver": null,
+        "timezone": "Europe/Paris",
+        "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+      },
+      "mismatches": []
+    },
+    "errors": {}
+  },
+  "behavior": {
+    "samples": 27,
+    "durationMs": 423,
+    "speedMean": 2.864,
+    "speedCv": 1.723,
+    "accelCv": 3.81,
+    "straightness": 1,
+    "angleEntropy": 0.23,
+    "jitter": 0,
+    "stepCv": 0,
+    "sessionMs": 1046,
+    "moves": 27,
+    "clicks": 1,
+    "keys": 15,
+    "scrolls": 0,
+    "untrusted": 0,
+    "inputWithoutKeys": 0,
+    "focusChanges": 0,
+    "firstInteractionMs": 1,
+    "coalescedMean": 1,
+    "keyDwellMean": 31,
+    "keyDwellCv": 0.018,
+    "keyFlightCv": 0.347
+  }
+}

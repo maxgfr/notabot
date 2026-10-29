@@ -392,11 +392,32 @@ export function verdictOf(bot: number): Verdict {
   return "human";
 }
 
-/** Blends the rules with a model's opinion, the rules weighing `rulesWeight` (default 0.7). */
+/**
+ * Whether the rules decided alone: a decisive rule (webdriver, automation globals) is never
+ * argued away, and a clean browser needs no second opinion. The model is not asked then.
+ */
+export function rulesDecided(rulesBot: number): boolean {
+  return rulesBot >= 0.95 || rulesBot <= 0.05;
+}
+
+/** A model this sure of "bot" (confidence 0.7 and up) is a confident disagreement. */
+const CONFIDENT_BOT = 0.85;
+
+const logit = (p: number) => {
+  const q = Math.min(0.99, Math.max(0.01, p));
+  return Math.log(q / (1 - q));
+};
+
+/**
+ * Blends the rules with a model's opinion in log-odds, the rules weighing `rulesWeight` (default
+ * 0.7). `modelBot` carries the model's confidence (0.5 ± confidence / 2): an unsure model moves
+ * nothing. A model confidently saying "bot" where the rules said human makes the verdict at least
+ * "unsure", so the visitor gets the slider: the model can catch what the rules missed.
+ */
 export function blend(rulesBot: number, modelBot: number | null, rulesWeight = 0.7): number {
-  if (modelBot === null) return rulesBot;
+  if (modelBot === null || rulesDecided(rulesBot)) return rulesBot;
   const w = Math.min(1, Math.max(0, rulesWeight));
-  // A decisive rule (webdriver, automation globals) is never argued away by a model.
-  if (rulesBot >= 0.95) return rulesBot;
-  return Math.round((w * rulesBot + (1 - w) * modelBot) * 1000) / 1000;
+  let bot = 1 / (1 + Math.exp(-(w * logit(rulesBot) + (1 - w) * logit(modelBot))));
+  if (modelBot >= CONFIDENT_BOT && bot < THRESHOLDS.unsure) bot = THRESHOLDS.unsure;
+  return Math.round(bot * 1000) / 1000;
 }

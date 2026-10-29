@@ -8,17 +8,21 @@ import {
   judgeSlide,
   type PointerSample,
 } from "../behavior/index";
+// The prompt module only: the server builds the same prompt without bundling the AI stack.
 import {
   botProbabilityOf,
   buildPrompt,
+  type Features,
   parseVerdict,
   SYSTEM_PROMPT,
+  serverFeatures,
   toFeatures,
-} from "../llm/index";
+} from "../llm/prompt";
 import { base64urlDecode, hmacHex, safeEqual, sha256Hex } from "../pow/crypto";
 import {
   blend,
   type Flag,
+  rulesDecided,
   type ScoreResult,
   score,
   THRESHOLDS,
@@ -84,8 +88,8 @@ export interface NotabotServerOptions {
   store?: ReplayStore;
   /** Request rules; default REQUEST_RULES. Add your own (JA4 lists, ASN lists, paths…). */
   rules?: RequestRule[];
-  /** A model for /verify, OpenAI-compatible, with the server's key. */
-  llm?: { endpoint: string; apiKey?: string; model?: string };
+  /** A model for /verify, OpenAI-compatible, with the server's key; asked only when the rules are in doubt. */
+  llm?: { endpoint: string; apiKey?: string; model?: string; timeoutMs?: number };
   /**
    * Requests per IP per minute above which `rate` flags the request (0.4) and /challenge answers
    * 429. Off by default.
@@ -423,11 +427,22 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     return { ok, reason: ok ? "accepted" : "verdict", verdict, bot, flags: analysis.flags, claims };
   }
 
-  async function askModel(features: ReturnType<typeof toFeatures>): Promise<number | null> {
+  // Same features, same answer: the model is asked once per distinct feature vector.
+  const modelCache = new Map<string, number>();
+
+  /**
+   * The model's probability of a bot, or null: no model, an answer that cannot be read, or no
+   * answer within `llm.timeoutMs` (default 4 s). JSON mode, temperature 0, a short answer.
+   */
+  async function askModel(features: Features): Promise<number | null> {
     const llm = options.llm;
     if (!llm) return null;
-    try {
-      const res = await fetch(`${llm.endpoint.replace(/\/$/, "")}/chat/completions`, {
+    const prompt = buildPrompt(features);
+    const cacheKey = await sha256Hex(prompt);
+    const cached = modelCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+    const call = (jsonMode: boolean) =>
+      fetch(`${llm.endpoint.replace(/\/$/, "")}/chat/completions`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -437,14 +452,26 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
           model: llm.model ?? "default",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: buildPrompt(features) },
+            { role: "user", content: prompt },
           ],
+          temperature: 0,
+          max_tokens: 300,
+          ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
         }),
+        signal: AbortSignal.timeout(llm.timeoutMs ?? 4000),
       });
+    try {
+      let res = await call(true);
+      // Some OpenAI-compatible servers refuse response_format: ask again without it.
+      if (res.status === 400) res = await call(false);
       if (!res.ok) return null;
       const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
       const verdict = parseVerdict(body.choices?.[0]?.message?.content ?? "");
-      return verdict ? botProbabilityOf(verdict) : null;
+      if (!verdict) return null;
+      const bot = botProbabilityOf(verdict);
+      if (modelCache.size >= 500) modelCache.delete(modelCache.keys().next().value as string);
+      modelCache.set(cacheKey, bot);
+      return bot;
     } catch {
       return null;
     }
@@ -499,9 +526,16 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     const analysis = await analyzeRequest(info);
     const flags = [...scored.flags, ...analysis.flags, ...crossCheckFlags(info, body.signals)];
     const rulesBot = combine(...flags.map((f) => f.weight));
-    const modelBot = await askModel(
-      toFeatures(body.signals, { ...scored, bot: rulesBot, flags }, behavior),
-    );
+    const modelBot = rulesDecided(rulesBot)
+      ? null
+      : await askModel(
+          toFeatures(
+            body.signals,
+            { ...scored, bot: rulesBot, flags },
+            behavior,
+            serverFeatures(info, body.signals),
+          ),
+        );
     const bot = Math.round(blend(rulesBot, modelBot) * 1000) / 1000;
     const verdict = verdictOf(bot);
     // Where the slider's zone sits: chosen and signed here, so the page cannot pick it.

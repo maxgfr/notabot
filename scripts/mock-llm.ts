@@ -33,9 +33,9 @@ export async function mockLlm(req: Request, path: string): Promise<Response> {
     body.model === "garbage"
       ? "I think this is a human, probably."
       : JSON.stringify({
+          reasons: bot ? ["webdriver is true"] : ["features consistent"],
           verdict: bot ? "bot" : "human",
           confidence: 0.8,
-          reasons: bot ? ["webdriver is true"] : ["features consistent"],
         });
   return Response.json(
     {

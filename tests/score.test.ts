@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { BehaviorFeatures } from "../src/behavior/index";
-import { blend, claimedSystems, RULES, score, verdictOf } from "../src/score/index";
+import { blend, claimedSystems, RULES, rulesDecided, score, verdictOf } from "../src/score/index";
 import { headlessChromium, realChrome, stealth } from "./fixtures";
 
 const ids = (s: ReturnType<typeof score>) => s.flags.map((f) => f.id);
@@ -128,10 +128,20 @@ describe("verdicts and blending", () => {
     expect(verdictOf(0.35)).toBe("unsure");
     expect(verdictOf(0.8)).toBe("bot");
   });
-  test("the model moves an unsure score but never argues away a decisive rule", () => {
+  test("the model moves an unsure score in log-odds but never argues away a decisive rule", () => {
     expect(blend(0.5, null)).toBe(0.5);
-    expect(blend(0.5, 0)).toBe(0.35);
-    expect(blend(0.5, 1)).toBe(0.65);
+    expect(blend(0.5, 0)).toBeCloseTo(0.201, 3);
+    expect(blend(0.5, 1)).toBeCloseTo(0.799, 3);
+    // An unsure model (0.5) moves nothing; a decided rule set is never argued with.
+    expect(blend(0.6, 0.5)).toBeCloseTo(0.6 ** 0.7 / (0.6 ** 0.7 + 0.4 ** 0.7), 3);
     expect(blend(0.99, 0)).toBe(0.99);
+    expect(blend(0.02, 1)).toBe(0.02);
+    expect(rulesDecided(0.96)).toBe(true);
+    expect(rulesDecided(0.5)).toBe(false);
+  });
+
+  test("a confident model saying bot where the rules said human raises doubt", () => {
+    expect(verdictOf(blend(0.1, 0.95))).toBe("unsure");
+    expect(verdictOf(blend(0.1, 0.7))).toBe("human");
   });
 });

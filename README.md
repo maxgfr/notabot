@@ -107,11 +107,81 @@ Every layer is its own entry point:
 
 ## AI models
 
-The demo lets visitors bring their own key (stored encrypted on their device by llm-connect),
-point at a proxy or Worker, or use a local Ollama. Suggested small models come from
+The demo lets visitors bring their own key (kept for the page only, or encrypted on their device
+by llm-connect if they tick "remember"), point at a proxy or Worker, or use a local Ollama
+(`OLLAMA_ORIGINS=https://maxgfr.github.io ollama serve`). Suggested small models come from
 [llm-models](https://www.npmjs.com/package/llm-models) at build time (`bun run recommended` →
-`assets/recommended.json`), and the provider catalog is `llm-models catalog`. On your site, never
-put a key in the page: use `endpoint` with a proxy, or let the Worker call the model.
+`assets/recommended.json`): no reasoning model, structured output (or tool calls) supported, at
+most $1 per million input tokens; a provider with nothing that fits keeps its committed pick. On
+your site, never put a key in the page: use `endpoint` with a proxy, or let the Worker call it.
+
+What the model is shown, and how its answer is read:
+
+- **A closed list of features**: numbers, booleans and values from fixed lists. A raw string the
+  client controls (user agent, GPU name, fonts) never reaches the prompt, nor does a behaviour key
+  the client invented; at most 96 features. On a server, four more: `hosting_asn`,
+  `http_version`, `tz_matches_ip`, `ja4_matches_ua`.
+- **A fixed system prompt**: a glossary of every rule (`id — explanation (weight)`) generated
+  from the package's rules, two calibrated examples, `reasons` asked before `verdict`. The same
+  prefix for every visitor, so providers can cache it. `has_interaction: false` replaces a
+  behaviour block of zeros.
+- **Structured output** where the provider supports it (the verdict's JSON Schema), else text read
+  by `parseVerdict`, which drops `<think>` blocks and keeps the last valid object. The server
+  asks in JSON mode, at temperature 0, for 300 tokens at most, and gives up after 4 s.
+- **The blend** is in log-odds, weighted by the model's confidence (an unsure model moves
+  nothing). The model is not asked when the rules decided (≥ 0.95 or ≤ 0.05). A model
+  confidently saying "bot" where the rules said human raises the verdict to "unsure": the visitor
+  gets the slider. Identical questions are answered from a cache.
+
+`notabot/middleware` imports the prompt module only (`notabot/llm`'s `prompt`), never
+llm-connect or the AI SDK: `bun run test:package` checks it.
+
+### Benchmark
+
+`bun run bench` scores the labelled corpus three ways: the rules alone, a logistic regression on
+the same features (trained in TypeScript, no dependency, scored by leave-one-out so never on a
+sample it saw), and, with `NOTABOT_LLM_ENDPOINT` / `NOTABOT_LLM_API_KEY` / `NOTABOT_LLM_MODEL`
+set, the rules blended with a model. The corpus is small and is not real traffic: human profiles
+written from documented setups (`tests/profiles.ts`: keyboard only, screen reader, privacy
+extension, Brave, Safari, Firefox `resistFingerprinting`, Android), and automated browsers
+captured by `bun run capture` (Playwright driving Chromium, installed Chrome and Brave, with and
+without a stealth layer). Add your own browsers from the demo's download button:
+`bun run bench --add notabot-signals.json --label human --source "Firefox on Linux"`. The model
+column is absent below: no model was run for these numbers.
+
+<!-- bench:start -->
+| Classifier                          | Humans passed | Humans challenged | Humans refused | Bots refused | Bots challenged | Bots passed |
+| ----------------------------------- | ------------- | ----------------- | -------------- | ------------ | --------------- | ----------- |
+| Rules alone                         | 8/8           | 0                 | 0              | 7/8          | 0               | 1           |
+| Logistic regression (leave-one-out) | 7/8           | 1                 | 0              | 5/8          | 2               | 1           |
+
+16 samples: 8 human profiles built from documented setups, 8 automated browsers captured by `scripts/capture.ts`. Bot probability per sample:
+
+| Sample               | Label | Rules | Regression |
+| -------------------- | ----- | ----- | ---------- |
+| chrome-mac           | human | 0.00  | 0.24       |
+| keyboard-only        | human | 0.00  | 0.24       |
+| screen-reader        | human | 0.00  | 0.24       |
+| privacy-extension    | human | 0.28  | 0.14       |
+| brave                | human | 0.00  | 0.16       |
+| safari               | human | 0.00  | 0.24       |
+| firefox-rfp          | human | 0.10  | 0.05       |
+| android-chrome       | human | 0.00  | 0.39       |
+| brave-automated      | bot   | 0.95  | 0.68       |
+| chrome-automated     | bot   | 1.00  | 0.91       |
+| chrome-headed-hidden | bot   | 0.00  | 0.06       |
+| headless-new         | bot   | 1.00  | 0.91       |
+| headless-shell       | bot   | 1.00  | 1.00       |
+| spoofed-windows-ua   | bot   | 1.00  | 0.97       |
+| stealth-js-layer     | bot   | 1.00  | 0.77       |
+| stealth-linux-ua     | bot   | 1.00  | 0.90       |
+<!-- bench:end -->
+
+Read it for what it is: every automated browser but one carries a trace the rules know, and the
+one that does not (a headed Chrome with `AutomationControlled` off) passes all three. The
+regression trained on 16 samples is weaker than the rules it learned from; it ships as
+`classifyLocal()`, a free, deterministic second opinion (`check({ local: true })`, and the demo's
+report), never as the decision.
 
 ## Enforce on your server: the middleware
 

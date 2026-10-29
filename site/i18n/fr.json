@@ -48,10 +48,10 @@
   "officer.provider": "Fournisseur",
   "officer.model": "Modèle",
   "officer.key": "Clé d'API",
-  "officer.keyHint": "Gardée sur cet appareil, chiffrée dans IndexedDB, et envoyée à ce seul fournisseur.",
+  "officer.keyHint": "Envoyée à ce seul fournisseur. Oubliée en quittant la page, sauf si vous cochez la case : elle est alors gardée sur cet appareil, chiffrée dans IndexedDB.",
   "officer.endpoint": "Endpoint compatible OpenAI",
   "officer.proxyHint": "Votre Worker ou proxy garde la clé ; cette page ne la voit jamais.",
-  "officer.localHint": "Lancez OLLAMA_ORIGINS=* ollama serve pour que la page puisse l'appeler.",
+  "officer.localHint": "Lancez OLLAMA_ORIGINS=https://maxgfr.github.io ollama serve pour que cette page, et elle seule, puisse l'appeler.",
   "officer.test": "Tester la connexion",
   "officer.ask": "Demander un verdict",
   "officer.needCheck": "Lancez d'abord la vérification en haut : l'agent a besoin des papiers.",
@@ -104,5 +104,12 @@
   "papers.took": "Collecté en {ms} ms.",
   "officer.loadingProviders": "Chargement des fournisseurs…",
   "embed.middlewareTitle": "Un middleware sur votre serveur",
-  "embed.middlewareHint": "Valide la requête elle-même (les en-têtes qu'un navigateur envoie toujours, client hints, bibliothèques HTTP, protocole, réseau) et le jeton : signé, lié à son navigateur et à son IP, à usage unique. Express, Hono ou tout serveur Fetch (Next.js, Bun, Workers)."
+  "embed.middlewareHint": "Valide la requête elle-même (les en-têtes qu'un navigateur envoie toujours, client hints, bibliothèques HTTP, protocole, réseau) et le jeton : signé, lié à son navigateur et à son IP, à usage unique. Express, Hono ou tout serveur Fetch (Next.js, Bun, Workers).",
+  "officer.remember": "Retenir la clé sur cet appareil",
+  "officer.cancel": "Annuler",
+  "officer.cancelled": "Annulé.",
+  "officer.timeout": "Pas de réponse en {s} s : le modèle est trop lent ou injoignable.",
+  "officer.skipped": "Les règles ont tranché seules ({p} %) : un second avis ne changerait pas le verdict, mais voici ce qu'en dit le modèle.",
+  "report.local": "Second avis local (une régression logistique entraînée sur le benchmark, sans clé ni réseau) : probabilité de robot {p} %, d'après {reasons}.",
+  "report.localNone": "Second avis local : rien de ce qu'il a appris à peser."
 }
