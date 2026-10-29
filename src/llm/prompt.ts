@@ -1,9 +1,11 @@
 // What the model is shown and how its answer is read: pure functions, no llm-connect, no AI SDK,
 // so a server (the middleware) can build the same prompt without bundling the AI stack.
 import type { BehaviorFeatures } from "../behavior/index";
+import { ja4FitsModernBrowser } from "../middleware/fingerprints";
 import {
   CROSS_CHECK_RULES,
   isHostingNetwork,
+  isModernBrowser,
   REQUEST_RULES,
   type RequestInfo,
 } from "../middleware/request";
@@ -208,11 +210,8 @@ export function toFeatures(
  * Features only a server can compute, from the request it received: booleans and fixed values,
  * never a header's text.
  */
-export function serverFeatures(
-  info: RequestInfo,
-  signals: Pick<NotabotSignals, "env">,
-  ja4MatchesUa: boolean | null = null,
-): Features {
+export function serverFeatures(info: RequestInfo, signals: Pick<NotabotSignals, "env">): Features {
+  const ua = info.headers.get("user-agent") ?? "";
   const version = (info.httpVersion ?? info.network?.httpProtocol ?? "").replace(/^HTTP\//, "");
   const ipTimezone = info.network?.timezone;
   return {
@@ -221,7 +220,7 @@ export function serverFeatures(
       : null,
     http_version: ENUMS.http_version?.includes(version) ? version : "unknown",
     tz_matches_ip: ipTimezone ? ipTimezone === signals.env.timezone : null,
-    ja4_matches_ua: ja4MatchesUa,
+    ja4_matches_ua: isModernBrowser(ua) ? ja4FitsModernBrowser(info.ja4) : null,
   };
 }
 

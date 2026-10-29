@@ -1,4 +1,6 @@
 // Framework adapters. No framework is a dependency: they take the minimal shapes they read.
+
+import type { Http2Settings } from "./fingerprints";
 import type { Decision, Notabot, TrustProxy } from "./index";
 import { refusal, tokenFromRequest } from "./index";
 import type { RequestInfo } from "./request";
@@ -14,6 +16,10 @@ export interface NodeRequestLike {
   protocol?: string;
   body?: unknown;
   socket?: { remoteAddress?: string; encrypted?: boolean };
+  /** Header names and values in the order received (node:http, node:http2). */
+  rawHeaders?: string[];
+  /** node:http2's compatibility request: the session holds the client's SETTINGS. */
+  stream?: { session?: { remoteSettings?: Http2Settings } | undefined };
   on?(event: string, listener: (chunk?: unknown) => void): unknown;
   notabot?: Decision;
 }
@@ -28,8 +34,12 @@ export interface NodeResponseLike {
 function nodeHeaders(raw: NodeRequestLike["headers"]): Headers {
   const headers = new Headers();
   for (const [k, v] of Object.entries(raw)) {
-    if (v === undefined) continue;
-    headers.set(k, Array.isArray(v) ? v.join(", ") : v);
+    // HTTP/2 pseudo-headers (:method, :path…) are not headers; :authority stands for Host.
+    if (v === undefined || (k.startsWith(":") && k !== ":authority")) continue;
+    const value = Array.isArray(v) ? v.join(", ") : v;
+    if (k === ":authority") {
+      if (!raw.host) headers.set("host", value);
+    } else headers.set(k, value);
   }
   return headers;
 }
@@ -59,9 +69,15 @@ export function nodeIp(req: NodeRequestLike, trust: TrustProxy = false): string 
   return req.ip ?? req.socket?.remoteAddress ?? null;
 }
 
-/** RequestInfo of a Node request (Express, Connect, Fastify's raw request, node:http). */
+/**
+ * RequestInfo of a Node request (Express, Connect, Fastify's raw request, node:http, and
+ * node:http2's compatibility API, whose session gives the client's SETTINGS). A JA4 header is
+ * read only from a proxy `trust` vouches for: anyone can send `x-ja4`.
+ */
 export function infoFromNode(req: NodeRequestLike, trust: TrustProxy = false): RequestInfo {
   const headers = nodeHeaders(req.headers);
+  const order = req.rawHeaders?.filter((_, i) => i % 2 === 0).map((n) => n.toLowerCase());
+  const settings = req.stream?.session?.remoteSettings;
   return {
     method: req.method ?? "GET",
     url: nodeUrl(req, headers),
@@ -69,7 +85,9 @@ export function infoFromNode(req: NodeRequestLike, trust: TrustProxy = false): R
     ip: nodeIp(req, trust),
     httpVersion: req.httpVersion ?? null,
     network: null,
-    ja4: headers.get("x-ja4"),
+    ja4: trust ? headers.get("x-ja4") : null,
+    headerOrder: order?.length ? order : null,
+    http2Settings: settings ? { ...settings } : null,
   };
 }
 
@@ -188,6 +206,9 @@ export function notabotExpress(nb: Notabot, options: ExpressOptions = {}) {
         const response = await nb.handle(request, {
           ip: info.ip ?? null,
           httpVersion: info.httpVersion ?? null,
+          ja4: info.ja4 ?? null,
+          headerOrder: info.headerOrder ?? null,
+          http2Settings: info.http2Settings ?? null,
         });
         if (response) return void (await send(res, response));
       }

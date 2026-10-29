@@ -56,7 +56,7 @@ export const STYLES = `
   padding: 0;
   transition: border-color .2s, background-color .2s;
 }
-.seal:focus-visible, .handle:focus-visible, .retry:focus-visible, .by:focus-visible, summary:focus-visible {
+.seal:focus-visible, .handle:focus-visible, .target:focus-visible, .retry:focus-visible, .by:focus-visible, summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -102,6 +102,17 @@ export const STYLES = `
   box-shadow: 0 1px 3px rgb(0 0 0 / .25);
 }
 .handle:active { cursor: grabbing; }
+.targets-wrap { display: grid; gap: 8px; }
+.targets {
+  position: relative; height: 132px; border-radius: 8px;
+  background: color-mix(in srgb, var(--line) 30%, transparent);
+}
+.target {
+  position: absolute; width: 36px; height: 36px; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 2px solid var(--fg); background: var(--bg); color: var(--fg);
+  font: 600 14px/1 var(--notabot-font, inherit); cursor: pointer;
+}
+.target[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
 .details { font-size: 13px; color: var(--muted); }
 .details summary { cursor: pointer; width: max-content; list-style: none; display: inline-flex; align-items: center; gap: 6px; }
 .details summary::-webkit-details-marker { display: none; }

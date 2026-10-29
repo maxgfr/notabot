@@ -3,6 +3,7 @@ import { classify, classifyLocal, type LlmSettings, trainLocal } from "../src/ll
 import { toFeatures } from "../src/llm/prompt";
 import { createNotabot } from "../src/middleware/index";
 import { type Challenge, encodeSolution, search } from "../src/pow/index";
+import { expectedAnswer } from "../src/probes/index";
 import { score } from "../src/score/index";
 import { chromeHeaders } from "./browser-headers";
 import { headlessChromium, realChrome } from "./fixtures";
@@ -93,9 +94,15 @@ describe("the server's model", () => {
     });
     const post = async (signals: unknown) => {
       const c = (await (
-        await nb.handle(new Request("https://site.dev/notabot/challenge"))
+        await nb.handle(
+          new Request("https://site.dev/notabot/challenge", {
+            headers: chromeHeaders(realChrome().env.userAgent),
+          }),
+          { ip: "203.0.113.9" },
+        )
       )?.json()) as Challenge;
       const solution = encodeSolution({ ...c, number: (await search(c)) as number, took: 1 });
+      const probes = (c.probes ?? []).map(expectedAnswer);
       const res = await nb.handle(
         new Request("https://site.dev/notabot/verify", {
           method: "POST",
@@ -103,7 +110,7 @@ describe("the server's model", () => {
             ...chromeHeaders(realChrome().env.userAgent),
             "content-type": "application/json",
           },
-          body: JSON.stringify({ signals, solution }),
+          body: JSON.stringify({ signals, solution, probes }),
         }),
         { ip: "203.0.113.9" },
       );

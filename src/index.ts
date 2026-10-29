@@ -1,4 +1,9 @@
-import type { BehaviorFeatures, BehaviorTracker, PointerSample } from "./behavior/index";
+import type {
+  BehaviorFeatures,
+  BehaviorTracker,
+  PointerSample,
+  TargetClick,
+} from "./behavior/index";
 import type { ClassifyResult, LlmSettings } from "./llm/index";
 import { base64urlEncode } from "./pow/crypto";
 import {
@@ -9,6 +14,7 @@ import {
   type Solution,
   solveChallenge,
 } from "./pow/index";
+import { answerProbe } from "./probes/index";
 import {
   blend,
   rulesDecided,
@@ -65,7 +71,14 @@ export interface CheckResult {
   expiresAt: number | null;
   /** Where the server put the slider's zone (percent) when its verdict was "unsure". */
   zone: number | null;
+  /** The challenge the server chose for an "unsure" verdict (a slider, or targets), signed. */
+  visible: VisibleChallenge | null;
 }
+
+/** A slider and its zone, or targets to activate in order ([x, y] percents of their box). */
+export type VisibleChallenge =
+  | { kind: "slide"; zone: number }
+  | { kind: "targets"; targets: [number, number][] };
 
 /** Why a server refused: what the widget tells the visitor, and whether a retry can help. */
 export type NotabotErrorCode =
@@ -149,6 +162,7 @@ export async function submitSlide(
     keysTrusted?: boolean;
     position?: number;
     landed?: boolean;
+    clicks?: TargetClick[];
   },
   signal?: AbortSignal,
 ): Promise<SlideAnswer> {
@@ -200,6 +214,7 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
   step("rules");
   const rules = score({ signals, behavior });
 
+  let probeAnswers: string[] | null = null;
   const solve = async (): Promise<Solution | null> => {
     if (options.challenge === false) return null;
     step("pow");
@@ -210,6 +225,8 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
         : typeof source === "string"
           ? await fetchChallenge(source)
           : source;
+    // The puzzle's probes are answered with the page's own APIs, posted with the solution.
+    probeAnswers = challenge.probes?.map(answerProbe) ?? null;
     return solveChallenge(challenge, options.signal ? { signal: options.signal } : {});
   };
   let solution = await solve();
@@ -243,6 +260,7 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
   let signed = false;
   let expiresAt: number | null = null;
   let zone: number | null = null;
+  let visible: VisibleChallenge | null = null;
 
   if (options.verifyUrl) {
     step("verify");
@@ -250,7 +268,12 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
     const send = () =>
       postJson(
         url,
-        { signals, behavior, solution: solution && encodeSolution(solution) },
+        {
+          signals,
+          behavior,
+          solution: solution && encodeSolution(solution),
+          ...(probeAnswers ? { probes: probeAnswers } : {}),
+        },
         options.signal,
       );
     let body: Record<string, unknown>;
@@ -271,6 +294,7 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
     if (typeof body.verdict === "string") verdict = body.verdict as Verdict;
     if (typeof body.exp === "number") expiresAt = body.exp;
     if (typeof body.zone === "number") zone = body.zone;
+    visible = visibleOf(body.challenge) ?? (zone !== null ? { kind: "slide", zone } : null);
   }
   step("done");
   return {
@@ -286,7 +310,23 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
     signed,
     expiresAt,
     zone,
+    visible,
   };
+}
+
+function visibleOf(raw: unknown): VisibleChallenge | null {
+  if (!raw || typeof raw !== "object") return null;
+  const c = raw as Record<string, unknown>;
+  if (c.kind === "slide" && typeof c.zone === "number") return { kind: "slide", zone: c.zone };
+  if (
+    c.kind === "targets" &&
+    Array.isArray(c.targets) &&
+    c.targets.every(
+      (p) => Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === "number"),
+    )
+  )
+    return { kind: "targets", targets: c.targets as [number, number][] };
+  return null;
 }
 
 export { trackBehavior } from "./behavior/index";

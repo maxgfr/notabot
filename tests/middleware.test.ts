@@ -29,7 +29,7 @@ async function obtainToken(
   ip = "203.0.113.7",
 ) {
   const challenge = (await (
-    await nb.handle(req("/notabot/challenge", headers))
+    await nb.handle(req("/notabot/challenge", headers), { ip })
   )?.json()) as Challenge;
   const number = (await search(challenge)) as number;
   const solution = encodeSolution({ ...challenge, number, took: 1 });
@@ -136,7 +136,7 @@ describe("token lifecycle", () => {
   test("a headless browser's submission is signed as a bot, and the gate refuses it", async () => {
     const nb = createNotabot({ hmacKey: "k", maxnumber: 1500 });
     const challenge = (await (
-      await nb.handle(req("/notabot/challenge", chromeHeaders(UA)))
+      await nb.handle(req("/notabot/challenge", { "user-agent": "python-requests/2.32" }))
     )?.json()) as Challenge;
     const solution = encodeSolution({
       ...challenge,

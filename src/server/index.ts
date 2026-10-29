@@ -1,14 +1,15 @@
 // Server-side half: sign puzzles, check solutions, sign and check the token a form posts.
 // WebCrypto only, so it runs on Bun, Node 20+, Deno and Cloudflare Workers alike.
+import { base64urlDecode, base64urlEncode, hmacHex, randomHex, safeEqual } from "../pow/crypto";
 import {
-  base64urlDecode,
-  base64urlEncode,
-  hmacHex,
-  randomHex,
-  safeEqual,
-  sha256Hex,
-} from "../pow/crypto";
-import { type Challenge, DEFAULT_MAX_NUMBER, expiresOf, type Solution } from "../pow/index";
+  type Challenge,
+  DEFAULT_MAX_NUMBER,
+  expiresOf,
+  type PowAlgorithm,
+  powHash,
+  type Solution,
+  signedPart,
+} from "../pow/index";
 import type { Verdict } from "../score/index";
 
 export interface CreateChallengeOptions {
@@ -17,24 +18,46 @@ export interface CreateChallengeOptions {
   maxnumber?: number;
   /** Default 600 seconds. */
   expiresInSeconds?: number;
+  /** "SHA-256" (default, what every solver speaks) or "PBKDF2", `cost` rounds a try. */
+  algorithm?: PowAlgorithm;
+  /** PBKDF2 iterations per try. Default 5000. */
+  cost?: number;
+  /**
+   * Ties the puzzle to a client (a keyed hash of its IP and User-Agent): a solution is refused
+   * from anyone else, so solved puzzles cannot be farmed out and replayed.
+   */
+  bind?: string;
 }
 
 export async function createChallenge(options: CreateChallengeOptions): Promise<Challenge> {
   const maxnumber = options.maxnumber ?? DEFAULT_MAX_NUMBER;
+  const algorithm = options.algorithm ?? "SHA-256";
+  const cost = algorithm === "PBKDF2" ? (options.cost ?? 5000) : undefined;
   const expires = Math.floor(Date.now() / 1000) + (options.expiresInSeconds ?? 600);
-  const salt = `${randomHex(12)}?expires=${expires}`;
+  const salt = `${randomHex(12)}?expires=${expires}${options.bind ? `&bind=${options.bind}` : ""}`;
   const number = (crypto.getRandomValues(new Uint32Array(1))[0] ?? 0) % (maxnumber + 1);
-  const challenge = await sha256Hex(salt + number);
+  const challenge = await powHash(algorithm, salt + number, cost);
   return {
-    algorithm: "SHA-256",
+    algorithm,
     challenge,
     maxnumber,
+    ...(cost !== undefined ? { cost } : {}),
     salt,
-    signature: await hmacHex(options.hmacKey, challenge),
+    signature: await hmacHex(options.hmacKey, signedPart({ algorithm, challenge, cost })),
   };
 }
 
-export type VerifyFailure = "malformed" | "expired" | "bad-signature" | "wrong-number";
+export type VerifyFailure =
+  | "malformed"
+  | "expired"
+  | "bad-signature"
+  | "wrong-number"
+  | "wrong-client";
+
+/** The client a salt was bound to (`&bind=`), or null. */
+export function bindOf(salt: string): string | null {
+  return /[?&]bind=([0-9a-f]+)/.exec(salt)?.[1] ?? null;
+}
 
 /**
  * Checks a solution (the object, or the base64url string a form posted): not expired, signed by
@@ -45,6 +68,7 @@ export async function verifySolution(
   payload: Solution | string,
   hmacKey: string,
   now = Date.now(),
+  options: { bind?: string } = {},
 ): Promise<{ ok: true; solution: Solution } | { ok: false; reason: VerifyFailure }> {
   let solution: Solution;
   try {
@@ -53,7 +77,9 @@ export async function verifySolution(
     return { ok: false, reason: "malformed" };
   }
   if (
-    solution?.algorithm !== "SHA-256" ||
+    (solution?.algorithm !== "SHA-256" && solution?.algorithm !== "PBKDF2") ||
+    (solution.algorithm === "PBKDF2" &&
+      !(Number.isInteger(solution.cost) && (solution.cost as number) > 0)) ||
     typeof solution.challenge !== "string" ||
     typeof solution.salt !== "string" ||
     typeof solution.signature !== "string" ||
@@ -62,9 +88,15 @@ export async function verifySolution(
     return { ok: false, reason: "malformed" };
   const expires = expiresOf(solution.salt);
   if (expires !== null && expires * 1000 < now) return { ok: false, reason: "expired" };
-  const signature = await hmacHex(hmacKey, solution.challenge);
+  const signature = await hmacHex(hmacKey, signedPart(solution));
   if (!safeEqual(signature, solution.signature)) return { ok: false, reason: "bad-signature" };
-  if ((await sha256Hex(solution.salt + solution.number)) !== solution.challenge)
+  const bound = bindOf(solution.salt);
+  if (bound && options.bind !== undefined && bound !== options.bind)
+    return { ok: false, reason: "wrong-client" };
+  if (
+    (await powHash(solution.algorithm, solution.salt + solution.number, solution.cost)) !==
+    solution.challenge
+  )
     return { ok: false, reason: "wrong-number" };
   return { ok: true, solution };
 }
@@ -87,6 +119,8 @@ export interface TokenClaims {
   iph?: string;
   /** Left edge of the slider's target zone, in percent, when the verdict was "unsure". */
   zone?: number;
+  /** Or the targets to activate in order, as [x, y] percents of their box. */
+  targets?: [number, number][];
 }
 
 /** A compact signed token, `base64url(claims).hex(HMAC)`, for the site's backend to check. */

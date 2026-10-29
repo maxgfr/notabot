@@ -61,6 +61,7 @@ away by it. The demo shows the exact prompt before anything is sent.
 | `challenge-url`                           | a server that signs puzzles (`GET` → challenge)                                  |
 | `verify-url`                              | a server that re-scores and signs a token (`POST` signals, behaviour, solution)  |
 | `slide-url`                               | where the slider is judged in signed mode; default: `slide` next to `verify-url` |
+| `challenges`                              | which visible challenges the page may draw: `slide`, `targets` (default both)    |
 | `endpoint`, `model`                       | an OpenAI-compatible proxy for the AI opinion; the key stays there               |
 | `name`                                    | hidden field carrying the token, default `notabot-token`                         |
 | `form`                                    | form selector, when the widget sits outside it                                   |
@@ -224,6 +225,55 @@ What a request is checked for (`REQUEST_RULES`, extensible with your own `rules`
 - **Fetch metadata:** missing Sec-Fetch-* headers on a modern browser.
 - **Protocol and network:** a Chromium speaking HTTP/1.x; an IP on a hosting network (from `request.cf` or the `network` you pass).
 - **Rate:** an optional burst limit per IP (`ratePerMinute`), which also caps `/challenge`.
+- **TLS (JA4):** a browser User-Agent over a handshake no current browser makes (below TLS 1.3, no
+  server name, no HTTP/2 or 3 offered by ALPN): `ja4-ua-mismatch`. The JA4 comes from Cloudflare's
+  bot management (`request.cf.botManagement.ja4`) or, with `trustProxy`, from your proxy's
+  `x-ja4` header; anyone can send that header, so it is ignored otherwise. A coherence rule from
+  the [JA4 format](https://github.com/FoxIO-LLC/ja4/blob/main/technical_details/JA4.md), no list
+  of hashes.
+- **HTTP/2 SETTINGS:** served by `node:http2` (its compatibility API through `notabotExpress`),
+  the client's SETTINGS are read from the session; a Chromium User-Agent whose SETTINGS are not
+  Chromium's (header table 65536, no push, a 6 MB window, a 256 KB header list; sources in
+  `REFERENCES`) raises `http2-settings-not-chromium`.
+- **JA4H:** every analysis computes the request's [JA4H](https://github.com/FoxIO-LLC/ja4/blob/main/technical_details/JA4H.md)
+  (returned by `analyzeRequest()` as `ja4h`, and on `info.ja4h` for your own rules): from Node's
+  `rawHeaders`, in the order the client sent them; Fetch's Headers are sorted, so there it says
+  less.
+- **TCP:** no runtime sees the SYN packet; a proxy running p0f can pass its guess as
+  `network.tcpOs` for your own rules.
+
+**At scale** (`velocity`, off by default): the same browser fingerprint (canvas, WebGL, audio,
+fonts) from more than 30 IPs in ten minutes raises `fingerprint-velocity`, more than six
+fingerprints from one IP `fingerprint-churn`. Identical phones share a fingerprint and offices
+share an IP: tune the thresholds to your traffic before relying on them.
+
+**Agents that sign (Web Bot Auth).** With `agents: { allow: { "https://chatgpt.com": {
+ratePerMinute: 60 } } }`, a request signed per [HTTP Message Signatures](https://www.rfc-editor.org/rfc/rfc9421)
+(Ed25519, `Signature`, `Signature-Input`, `Signature-Agent`, tag `web-bot-auth`) is checked
+against the key its operator publishes at `/.well-known/http-message-signatures-directory`. A
+valid one passes as `verified-agent` (`decision.verifiedAgent.operator`), the hosting and
+HTTP-library rules set aside; an operator not listed is refused (`agent-not-allowed`), as is a
+bad or stale signature. Directories are fetched only for listed operators, over https, never an
+IP literal or a local name, without redirects, within 3 s and 64 KB, cached for an hour.
+
+**The proof of work is a price, not a detection.** `/challenge` prices each puzzle by risk: a
+clean browser pays `pow.base` (`maxnumber`, 50 000 hashes on average / 2), a request with flags
+or close to its rate up to ten times more, and with `pow.algorithm: "auto"` in PBKDF2 (ALTCHA
+v2's costly hash, `pow.cost` rounds a try) rather than SHA-256. `pow.busyPerMinute` doubles
+every price past that many puzzles a minute. Each puzzle is bound to a keyed hash of the
+client's IP and User-Agent (`pow.bind: false` lifts it), so solved puzzles cannot be farmed out.
+A bot with time pays and gets through to the rules: it slows abuse, it proves nothing.
+
+**Probes.** Each puzzle carries three questions drawn from its salt (`DOMMatrix` products,
+`Intl` number formats, `CSS.supports`, native getters' source, `TextEncoder` bytes): data, not
+code, so a strict CSP holds. The page answers them with its own APIs and the server checks:
+wrong answers raise `probe-mismatch`, none `probes-missing`. They change with every puzzle,
+so there is no fixed check to study and fake.
+
+**The visible challenge rotates.** A visitor in doubt gets either the slider or three numbered
+targets to press in order (`visibleChallenges`, both by default), chosen and signed by the
+server, judged again by `/slide`. Both work from the keyboard: arrow keys for the slider, Tab
+and Enter for the targets (their tab order is shuffled).
 
 The token's checks:
 
@@ -284,8 +334,8 @@ server of their own, the same `createNotabot()` in a dozen lines:
 The widget checks again 30 seconds before its token expires, and after each form submission
 that spent it.
 
-TCP, TLS (JA4) and HTTP/2 fingerprints never reach JavaScript; a Worker behind Cloudflare is
-where they can be added.
+TCP, TLS (JA4) and HTTP/2 fingerprints never reach JavaScript: the middleware reads them where
+the platform gives them (Cloudflare's `request.cf`, a trusted proxy, `node:http2`).
 
 ## Limits
 
