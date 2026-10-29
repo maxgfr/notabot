@@ -80,6 +80,7 @@ export const STYLES = `
 [data-state="human"] .status { color: var(--accent); }
 [data-state="bot"] .status, [data-state="error"] .status { color: var(--bad); }
 [data-state="challenge"] .status { color: var(--warn); }
+[hidden], .challenge:empty, .detail-slot:empty { display: none !important; }
 .retry {
   font: inherit; font-size: 13px; color: var(--fg); background: transparent;
   border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer;

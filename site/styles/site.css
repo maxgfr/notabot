@@ -804,6 +804,20 @@ main > section:not(.border)::before {
 .mode-panel label:first-child {
   margin-top: 0;
 }
+.mode-panel label.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+  margin-top: 4px;
+  cursor: pointer;
+}
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--teal);
+}
 select {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%231c2321' stroke-width='1.6'/%3E%3C/svg%3E");
@@ -812,7 +826,7 @@ select {
   background-size: 12px 8px;
   padding-right: 36px !important;
 }
-input:not([type="radio"]),
+input:not([type="radio"]):not([type="checkbox"]),
 select {
   font: inherit;
   font-size: 0.95rem;
@@ -823,7 +837,7 @@ select {
   border-radius: 8px;
   padding: 9px 12px;
 }
-input:not([type="radio"]):focus-visible,
+input:not([type="radio"]):not([type="checkbox"]):focus-visible,
 select:focus-visible {
   outline-offset: 1px;
   border-color: var(--teal);
@@ -935,6 +949,124 @@ pre {
 }
 .snippet h3 {
   font-size: 1.05rem;
+}
+
+/* Simulate a bot */
+
+.simulate-sheet {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(24px, 4vw, 64px);
+  align-items: start;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition:
+    background-color 200ms var(--ease),
+    border-color 200ms var(--ease);
+}
+.chip:hover {
+  border-color: var(--ink);
+}
+.chip[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--page);
+}
+.simulate-result {
+  display: grid;
+  gap: 10px;
+}
+.sim-score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 16px;
+  align-items: baseline;
+  border-top: 1px solid var(--rule);
+  padding-top: 10px;
+}
+.sim-score strong {
+  font-size: 1.2rem;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+}
+.sim-verdict {
+  font-size: 0.86rem;
+  color: var(--ink-2);
+}
+.sim-verdict.v-bot {
+  color: var(--red);
+}
+.sim-verdict.v-unsure {
+  color: var(--violet);
+}
+.sim-raised {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 0.86rem;
+}
+.sim-raised code {
+  color: var(--red);
+}
+
+/* What the server would add */
+
+.server-sheet {
+  margin-top: clamp(32px, 6vh, 56px);
+  display: grid;
+  gap: 12px;
+}
+.server-sheet .hint {
+  max-width: 76ch;
+}
+.rules .server .rule-state {
+  color: var(--teal);
+}
+
+/* What it catches */
+
+.catches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: clamp(24px, 4vw, 56px);
+  margin-bottom: 24px;
+}
+.catches-grid h3 {
+  font-size: 1.05rem;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+.catches-grid ul {
+  margin: 0;
+  padding: 0 0 0 1.1em;
+  display: grid;
+  gap: 10px;
+}
+.catches > p {
+  max-width: 76ch;
+  margin-top: 12px;
+}
+
+@media (max-width: 760px) {
+  .simulate-sheet {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .limits ul {

@@ -114,6 +114,9 @@ describe("behaviour", () => {
         inputWithoutKeys: 0,
         focusChanges: 1,
         firstInteraction: 50,
+        scrollTimes: [0, 400, 650, 1400, 1500, 2300],
+        pastes: 0,
+        honeypot: 0,
       },
       5000,
     );

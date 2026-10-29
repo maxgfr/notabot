@@ -31,7 +31,7 @@ export interface Flag {
 export type Verdict = "human" | "unsure" | "bot";
 
 export interface ScoreResult {
-  /** Probability that this is a bot, from 0 to 1 (noisy-OR of the flags' weights). */
+  /** Probability that this is a bot, from 0 to 1 (the flags combined by category). */
   bot: number;
   verdict: Verdict;
   flags: Flag[];
@@ -353,11 +353,57 @@ export const RULES: Rule[] = [
     test: ({ behavior }) =>
       behavior && behavior.moves >= 10 && behavior.coalescedMean === 0 ? "0 per event" : null,
   },
+  {
+    id: "robotic-scroll",
+    category: "behavior",
+    weight: 0.3,
+    explain: "Scrolls at a metronome's pace: the same gap every time, as a script's loop.",
+    test: ({ behavior }) =>
+      behavior && behavior.scrolls >= 8 && behavior.scrollCv !== null && behavior.scrollCv < 0.05
+        ? `scroll gap cv ${behavior.scrollCv}`
+        : null,
+  },
+  {
+    id: "honeypot-filled",
+    category: "behavior",
+    weight: 0.7,
+    explain:
+      "A field no person can see or reach was filled: what a script filling every input does. Some autofill tools do it too.",
+    test: ({ behavior }) => (behavior?.honeypot ? `${behavior.honeypot} inputs` : null),
+  },
 ];
 
 /**
- * Runs every rule and combines the tripped ones as independent evidence (noisy-OR):
- * `bot = 1 − Π(1 − weight)`. Deterministic, no network.
+ * Share of a category's weaker flags that still counts. Flags of one category tend to fire
+ * together (a headless user agent and a headless brand are one fact told twice): the strongest
+ * counts in full, the others at a quarter.
+ */
+export const WITHIN_CATEGORY = 0.25;
+
+/** Highest weight a behaviour flag may carry when the session has no pointer data at all. */
+export const BEHAVIOR_CAP_WITHOUT_POINTER = 0.6;
+
+/**
+ * Combines flags: within a category the strongest plus a quarter of each other one (noisy-OR on
+ * the discounted weights), then noisy-OR across categories, which are independent evidence.
+ */
+export function combineFlags(flags: readonly Pick<Flag, "category" | "weight">[]): number {
+  const byCategory = new Map<string, number[]>();
+  for (const f of flags)
+    byCategory.set(f.category, [...(byCategory.get(f.category) ?? []), f.weight]);
+  let human = 1;
+  for (const weights of byCategory.values()) {
+    const [strongest = 0, ...rest] = [...weights].sort((a, b) => b - a);
+    const p = 1 - rest.reduce((q, w) => q * (1 - WITHIN_CATEGORY * w), 1 - strongest);
+    human *= 1 - p;
+  }
+  return Math.round((1 - human) * 1000) / 1000;
+}
+
+/**
+ * Runs every rule and combines the tripped ones ({@link combineFlags}). Behaviour never decides
+ * alone when the session has no pointer data (a keyboard, a screen reader): its flags are capped
+ * below the bot threshold then. Deterministic, no network.
  */
 export function score(input: ScoreInput, rules: readonly Rule[] = RULES): ScoreResult {
   const flags: Flag[] = [];
@@ -372,14 +418,17 @@ export function score(input: ScoreInput, rules: readonly Rule[] = RULES): ScoreR
       flags.push({
         id: rule.id,
         category: rule.category,
-        weight: rule.weight,
+        weight:
+          rule.category === "behavior" && !input.behavior?.moves
+            ? Math.min(rule.weight, BEHAVIOR_CAP_WITHOUT_POINTER)
+            : rule.weight,
         explain: rule.explain,
         detail,
       });
   }
-  const bot = 1 - flags.reduce((p, f) => p * (1 - f.weight), 1);
+  const bot = combineFlags(flags);
   return {
-    bot: Math.round(bot * 1000) / 1000,
+    bot,
     verdict: verdictOf(bot),
     flags,
     checked: rules.map((r) => r.id),

@@ -33,13 +33,56 @@ notabot does that part in the open:
 | **Second opinions**   | the same questions asked from a fresh iframe and a Web Worker, which stealth layers forget                                                                                     |
 | **Consistency**       | OS named by the user agent vs platform vs client hints vs GPU, engine claimed vs `eval.toString().length`, time zone name vs clock offset, phone UA without touch              |
 | **Hardware prints**   | canvas (read twice, to spot injected noise), WebGL strings and a rendered scene, offline audio, fonts, WebGPU                                                                  |
-| **Behaviour**         | pointer speed, step and wobble, `isTrusted`, coalesced samples, key dwell and flight, fields filled without keys                                                               |
+| **Behaviour**         | pointer speed, step and wobble, `isTrusted`, coalesced samples, key dwell and flight, fields filled without keys, paste vs typing, scroll cadence, an invisible honeypot field |
 | **Proof of work**     | SHA-256 puzzle in a Web Worker, ALTCHA-style, signed by your server when you have one                                                                                          |
 | **AI officer**        | optional: a small model reads the features and gives a verdict, blended with the rules                                                                                         |
 
-Each rule has a weight; tripped rules combine as independent evidence (`1 − Π(1 − w)`). Below
-35 % the visitor is admitted, from 80 % refused, in between they get a slider judged on the
-geometry of the drag (a script's even steps on a ruler line fail) or the keyboard.
+Each rule has a weight and a category. Flags of one category tend to fire together (a headless
+user agent and a headless brand are one fact told twice), so within a category the strongest
+counts in full and each other one at a quarter; categories then combine as independent evidence
+(noisy-OR). Behaviour never decides alone when there is no pointer data (a keyboard, a screen
+reader): its flags are capped below the bot threshold then. Below 35 % the visitor is admitted,
+from 80 % refused, in between they get an extra step: a slider judged on the geometry of the drag,
+or numbered targets to press in order, both playable from the keyboard. The thresholds come from
+the benchmark: its human profiles stay at or below 28 %, the automated browsers the rules catch
+start at 95 %.
+
+**The extra step is friction, not proof.** It costs a script a little more and a person a few
+seconds; it does not prove anyone human. Image and slider puzzles are solved by machines: free,
+locally run models pass 92.6 % of real reCAPTCHA sessions ([Robot Visions](https://arxiv.org/pdf/2609.18518)),
+and commercial solvers bypass challenges almost perfectly at negligible cost
+([Broken Gates](https://arxiv.org/html/2607.18659v1); see also
+[Halligan](https://www.usenix.org/system/files/usenixsecurity25-teoh.pdf), USENIX Security '25).
+
+## What it catches, what it doesn't
+
+Catches:
+
+- **Stealth layers injected in JavaScript**: the natives they replace, the fresh iframes and
+  workers they forget to patch ([FP-Inconsistent](https://arxiv.org/html/2406.07647v2) measures
+  how evasive bots contradict themselves).
+- **Headless browsers out of the box**: `webdriver`, HeadlessChrome brands, a software GPU,
+  missing plugins.
+- **Scripted HTTP clients**: self-named user agents, missing browser headers, and on the server a
+  TLS handshake no browser makes.
+
+Does not catch alone:
+
+- **Browsers patched at the source** ([Camoufox](https://github.com/daijro/camoufox) and the
+  like), where nothing in JavaScript looks replaced.
+- **AI agents driving a real browser** on a real GPU: their signals are a person's
+  ([FP-Agent](https://arxiv.org/abs/2605.01247)).
+- **Human solving farms**, paid to pass any challenge
+  ([Motoyama et al., USENIX Security 2010](https://www.usenix.org/legacy/event/sec10/tech/full_papers/Motoyama.pdf)).
+
+For those, the server's signals (JA4, headers, fingerprint velocity, a price per attempt) and
+agents that sign their requests (Web Bot Auth). The benchmark below shows the gap plainly: a
+headed Chrome with its automation flags hidden passes every check here.
+
+**False positives are tested.** `tests/profiles.test.ts` runs the rules on people whose readings
+look odd for good reasons (keyboard only, a screen reader without a pointer, a canvas-blocking
+extension, Brave, Safari, Firefox with `resistFingerprinting`, an Android phone): CI fails if any
+of them is called a bot, with or without its behaviour.
 
 ## The model never reads text the browser wrote
 
@@ -62,12 +105,21 @@ away by it. The demo shows the exact prompt before anything is sent.
 | `verify-url`                              | a server that re-scores and signs a token (`POST` signals, behaviour, solution)  |
 | `slide-url`                               | where the slider is judged in signed mode; default: `slide` next to `verify-url` |
 | `challenges`                              | which visible challenges the page may draw: `slide`, `targets` (default both)    |
+| `no-honeypot`                             | do not add the invisible honeypot field to the form                              |
 | `endpoint`, `model`                       | an OpenAI-compatible proxy for the AI opinion; the key stays there               |
 | `name`                                    | hidden field carrying the token, default `notabot-token`                         |
 | `form`                                    | form selector, when the widget sits outside it                                   |
-| `lang`                                    | `en` or `fr` (default: the page's)                                               |
+| `lang`                                    | `en`, `fr`, `de`, `es`, or one you register (default: the page's)                |
 | `theme`                                   | `auto`, `light`, `dark`                                                          |
 | `rules-weight`                            | weight of the rules against the model, default `0.7`                             |
+
+The widget is a checkbox to assistive technology (`role="checkbox"`, `aria-checked`), updated in
+place so focus and its one live region survive every state. Its strings come in English, French,
+German and Spanish (`lang`), and each can be replaced: `widget.messages = { label: "…" }`, a
+`data-msg-<key>` attribute (`data-msg-label="…"`), or `registerMessages("it", { … })` for a
+language of your own. In a form, it adds an invisible honeypot field (`<name>-hp`, out of the tab
+order and hidden from assistive technology; `no-honeypot` to opt out): the tracker and the
+middleware both flag it when a script fills it.
 
 On the script tag, `data-form="#id"` adds a widget to that form and holds its submission until
 the check passes (`data-guard="false"` to opt out). Events: `notabot:state`, `notabot:step`,
@@ -150,6 +202,8 @@ without a stealth layer). Add your own browsers from the demo's download button:
 `bun run bench --add notabot-signals.json --label human --source "Firefox on Linux"`. The model
 column is absent below: no model was run for these numbers.
 
+The scores below use the correlation-capped combination described above.
+
 <!-- bench:start -->
 | Classifier                          | Humans passed | Humans challenged | Humans refused | Bots refused | Bots challenged | Bots passed |
 | ----------------------------------- | ------------- | ----------------- | -------------- | ------------ | --------------- | ----------- |
@@ -169,13 +223,13 @@ column is absent below: no model was run for these numbers.
 | firefox-rfp          | human | 0.10  | 0.05       |
 | android-chrome       | human | 0.00  | 0.39       |
 | brave-automated      | bot   | 0.95  | 0.68       |
-| chrome-automated     | bot   | 1.00  | 0.91       |
+| chrome-automated     | bot   | 0.96  | 0.91       |
 | chrome-headed-hidden | bot   | 0.00  | 0.06       |
-| headless-new         | bot   | 1.00  | 0.91       |
-| headless-shell       | bot   | 1.00  | 1.00       |
-| spoofed-windows-ua   | bot   | 1.00  | 0.97       |
+| headless-new         | bot   | 0.96  | 0.91       |
+| headless-shell       | bot   | 0.99  | 1.00       |
+| spoofed-windows-ua   | bot   | 0.98  | 0.97       |
 | stealth-js-layer     | bot   | 1.00  | 0.77       |
-| stealth-linux-ua     | bot   | 1.00  | 0.90       |
+| stealth-linux-ua     | bot   | 0.98  | 0.90       |
 <!-- bench:end -->
 
 Read it for what it is: every automated browser but one carries a trace the rules know, and the
@@ -342,8 +396,11 @@ the platform gives them (Cloudflare's `request.cf`, a trusted proxy, `node:http2
 - Front-end detection is advisory until a server checks the proof of work and signs the token.
 - Privacy tools (Brave, Firefox fingerprinting protection, canvas blockers) change some readings;
   they count as weak evidence, never as a verdict alone.
-- The slider has a keyboard path, and behaviour never blocks on its own; still offer another way
-  through for people who need it.
+- The slider and the targets both have a keyboard path, and behaviour never decides alone without
+  a pointer; the extra step is friction, so still offer another way through for people who need
+  it.
+- See [What it catches, what it doesn't](#what-it-catches-what-it-doesnt): source-patched
+  browsers, AI agents in real browsers and human farms need the server's signals.
 - The CDP detection trick (an `Error` whose `stack` getter fires when DevTools serializes it) is
   deliberately left out: V8 broke it in 2025, and it logs an error in every visitor's console.
 
@@ -351,6 +408,18 @@ the platform gives them (Cloudflare's `request.cf`, a trusted proxy, `node:http2
 
 Everything runs in the page. Nothing is sent anywhere unless the site uses a Worker or the visitor
 asks for the AI opinion, and then only the feature vector shown on screen.
+
+## The demo
+
+The site reads your browser on arrival and keeps those signals: the check reuses them instead of
+reading twice. The AI officer, with the AI SDK and the provider catalog behind it, loads when you
+reach its section. "Simulate a bot" changes a copy of your signals the way a bot's would read
+(webdriver, a HeadlessChrome user agent, SwiftShader, a contradicting iframe, a stealth plugin's
+patches, a Windows user agent on your GPU) and scores both side by side, in the page. "What the
+server would add" lists every rule only the middleware runs, tried on the headers the page can
+know about your browser. The full report (verdict, flags, features, the exact prompt, the model's
+answer, the local regression's opinion, signals and behaviour) downloads as JSON. The 850 KB
+provider catalog is served by the site only; it is not in the npm package.
 
 ## Development
 

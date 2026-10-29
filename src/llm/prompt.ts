@@ -59,6 +59,9 @@ export const BEHAVIOR_KEYS = [
   "keyDwellMean",
   "keyDwellCv",
   "keyFlightCv",
+  "scrollCv",
+  "pastes",
+  "honeypot",
 ] as const satisfies readonly (keyof BehaviorFeatures)[];
 // A key added to BehaviorFeatures and forgotten here fails the typecheck.
 type MissingBehaviorKey = Exclude<keyof BehaviorFeatures, (typeof BEHAVIOR_KEYS)[number]>;

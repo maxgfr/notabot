@@ -1,15 +1,14 @@
-// The AI officer: model settings through llm-connect (the visitor's key, a proxy, or Ollama),
-// the exact prompt shown before sending, and the answer blended with the rules.
+// The AI officer: model settings through llm-connect (the visitor's key, a proxy, or Ollama), and
+// the answer blended with the rules. Loaded when the visitor reaches the section, with the AI
+// stack and the provider catalog behind it.
 import {
   botProbabilityOf,
-  buildPrompt,
   classify,
   describeError,
   type Features,
   type LlmSettings,
   type LlmSettingsState,
   proxySettings,
-  SYSTEM_PROMPT,
   testConnection,
   visitorStore,
 } from "../../src/llm/index";
@@ -35,12 +34,6 @@ export interface OfficerContext {
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-
-export function showPrompt(features: Features | null): void {
-  $("prompt").textContent = features
-    ? `system:\n${SYSTEM_PROMPT}\n\nuser:\n${buildPrompt(features)}`
-    : t("officer.promptPending");
-}
 
 export function mountOfficer(ctx: OfficerContext): void {
   const form = $<HTMLFormElement>("officer-form");
@@ -135,14 +128,19 @@ export function mountOfficer(ctx: OfficerContext): void {
   model.addEventListener("change", () => store.selectModel(model.value.trim()));
   apiKey.addEventListener("input", () => store.setApiKey(apiKey.value.trim()));
 
+  const showMode = (value: string) => {
+    mode = value as Mode;
+    for (const panel of form.querySelectorAll<HTMLElement>(".mode-panel"))
+      panel.hidden = panel.dataset.mode !== mode;
+  };
   for (const radio of form.querySelectorAll<HTMLInputElement>('input[name="mode"]')) {
     radio.addEventListener("change", () => {
-      mode = radio.value as Mode;
-      for (const panel of form.querySelectorAll<HTMLElement>(".mode-panel"))
-        panel.hidden = panel.dataset.mode !== mode;
+      showMode(radio.value);
       say("");
     });
   }
+  // This module loads late: a choice made before it arrived still counts.
+  showMode(form.querySelector<HTMLInputElement>('input[name="mode"]:checked')?.value ?? "key");
 
   async function settings(): Promise<LlmSettings | null> {
     if (mode === "proxy")

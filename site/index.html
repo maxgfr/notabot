@@ -36,30 +36,30 @@
           <article class="passport" id="passport" aria-label="{{passport.aria}}">
             <svg class="guilloche" id="guilloche" aria-hidden="true" focusable="false"></svg>
             <header class="passport-head">
-              <p class="passport-title"><span>Browser passport</span><span>Passeport navigateur</span></p>
+              <p class="passport-title"><span lang="en">Browser passport</span><span lang="fr">Passeport navigateur</span></p>
               <p class="passport-type"><span class="small">Type</span><span class="mono">P</span></p>
               <p class="passport-code"><span class="small">Code</span><span class="mono" id="pp-code">···</span></p>
             </header>
             <div class="passport-body">
               <figure class="portrait">
-                <canvas id="portrait" width="240" height="300" aria-label="{{passport.portrait}}"></canvas>
+                <canvas id="portrait" width="240" height="300" role="img" aria-label="{{passport.portrait}}"></canvas>
                 <figcaption class="small">{{passport.portraitCaption}}</figcaption>
               </figure>
               <dl class="passport-fields" id="pp-fields">
-                <div><dt>Engine / Moteur</dt><dd id="pp-engine">…</dd></div>
+                <div><dt><span lang="en">Engine</span> / <span lang="fr">Moteur</span></dt><dd id="pp-engine">…</dd></div>
                 <div><dt>Version</dt><dd id="pp-version">…</dd></div>
-                <div><dt>System / Système</dt><dd id="pp-system">…</dd></div>
-                <div><dt>Languages / Langues</dt><dd id="pp-languages">…</dd></div>
-                <div><dt>Time zone / Fuseau</dt><dd id="pp-timezone">…</dd></div>
-                <div><dt>Screen / Écran</dt><dd id="pp-screen">…</dd></div>
-                <div><dt>Cores · memory / Cœurs · mémoire</dt><dd id="pp-cpu">…</dd></div>
-                <div class="wide"><dt>Graphics / Graphisme</dt><dd id="pp-gpu">…</dd></div>
-                <div><dt>Print no. / Empreinte nº</dt><dd class="mono" id="pp-print">…</dd></div>
-                <div><dt>Issued / Délivré</dt><dd class="mono" id="pp-issued">…</dd></div>
+                <div><dt><span lang="en">System</span> / <span lang="fr">Système</span></dt><dd id="pp-system">…</dd></div>
+                <div><dt><span lang="en">Languages</span> / <span lang="fr">Langues</span></dt><dd id="pp-languages">…</dd></div>
+                <div><dt><span lang="en">Time zone</span> / <span lang="fr">Fuseau</span></dt><dd id="pp-timezone">…</dd></div>
+                <div><dt><span lang="en">Screen</span> / <span lang="fr">Écran</span></dt><dd id="pp-screen">…</dd></div>
+                <div><dt><span lang="en">Cores · memory</span> / <span lang="fr">Cœurs · mémoire</span></dt><dd id="pp-cpu">…</dd></div>
+                <div class="wide"><dt><span lang="en">Graphics</span> / <span lang="fr">Graphisme</span></dt><dd id="pp-gpu">…</dd></div>
+                <div><dt><span lang="en">Print no.</span> / <span lang="fr">Empreinte nº</span></dt><dd class="mono" id="pp-print">…</dd></div>
+                <div><dt><span lang="en">Issued</span> / <span lang="fr">Délivré</span></dt><dd class="mono" id="pp-issued">…</dd></div>
               </dl>
             </div>
             <div class="stamp-zone" id="stamp-zone" aria-live="polite"></div>
-            <p class="mrz" id="mrz" aria-label="{{passport.mrz}}"><span>P&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span><span>&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span></p>
+            <p class="mrz" id="mrz" role="img" aria-label="{{passport.mrz}}"><span>P&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span><span>&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span></p>
           </article>
         </div>
 
@@ -89,7 +89,7 @@
             <button type="button" class="button quiet" id="download-json">{{papers.download}}</button>
           </div>
         </div>
-        <div class="ledger" id="ledger" aria-live="polite">
+        <div class="ledger" id="ledger">
           <p class="placeholder">{{papers.loading}}</p>
         </div>
       </section>
@@ -98,11 +98,25 @@
         <div class="section-head">
           <h2 id="report-title">{{report.title}}</h2>
           <p>{{report.lede}}</p>
+          <div class="actions">
+            <button type="button" class="button quiet" id="download-report">{{report.download}}</button>
+          </div>
         </div>
         <div class="report-sheet">
           <p class="report-total" id="report-total">{{report.pending}}</p>
           <p class="hint" id="local-opinion"></p>
           <ol class="rules" id="rules"></ol>
+        </div>
+      </section>
+
+      <section class="simulate" id="simulate" aria-labelledby="simulate-title">
+        <div class="section-head">
+          <h2 id="simulate-title">{{simulate.title}}</h2>
+          <p>{{simulate.lede}}</p>
+        </div>
+        <div class="simulate-sheet">
+          <div class="chips" id="simulate-presets" role="group" aria-label="{{simulate.presets}}"></div>
+          <div class="simulate-result" id="simulate-result" aria-live="polite"></div>
         </div>
       </section>
 
@@ -173,7 +187,13 @@
           <div><dt>{{network.tlsTitle}}</dt><dd>{{network.tls}} <a href="https://www.youtube.com/watch?v=pqtDUrLReI4&amp;t=301s">[05:01]</a></dd></div>
           <div><dt>{{network.httpTitle}}</dt><dd>{{network.http}} <a href="https://www.youtube.com/watch?v=pqtDUrLReI4&amp;t=355s">[05:55]</a></dd></div>
           <div><dt>{{network.scaleTitle}}</dt><dd>{{network.scale}} <a href="https://www.youtube.com/watch?v=pqtDUrLReI4&amp;t=519s">[08:39]</a></dd></div>
+          <div><dt>{{network.agentsTitle}}</dt><dd>{{network.agents}} <a href="https://www.youtube.com/watch?v=pqtDUrLReI4&amp;t=764s">[12:44]</a></dd></div>
         </dl>
+        <div class="server-sheet">
+          <h3>{{server.title}}</h3>
+          <p class="hint">{{server.lede}} <a href="https://github.com/maxgfr/notabot#enforce-on-your-server-the-middleware">notabot/middleware</a></p>
+          <ol class="rules" id="server-rules"></ol>
+        </div>
       </section>
 
       <section class="embed" id="embed" aria-labelledby="embed-title">
@@ -227,6 +247,33 @@ POST /siteverify  secret=…&amp;response=&lt;token&gt;
             <p class="hint">{{embed.workerHint}} <a href="https://github.com/maxgfr/notabot/tree/main/examples/cloudflare-worker">examples/cloudflare-worker</a></p>
           </div>
         </div>
+      </section>
+
+      <section class="catches" id="catches" aria-labelledby="catches-title">
+        <div class="section-head">
+          <h2 id="catches-title">{{catches.title}}</h2>
+          <p>{{catches.lede}}</p>
+        </div>
+        <div class="catches-grid">
+          <div>
+            <h3>{{catches.catchTitle}}</h3>
+            <ul>
+              <li>{{catches.c1}}</li>
+              <li>{{catches.c2}}</li>
+              <li>{{catches.c3}}</li>
+            </ul>
+          </div>
+          <div>
+            <h3>{{catches.missTitle}}</h3>
+            <ul>
+              <li>{{catches.m1}} <a href="https://github.com/daijro/camoufox">Camoufox</a></li>
+              <li>{{catches.m2}} <a href="https://arxiv.org/abs/2605.01247">FP-Agent</a></li>
+              <li>{{catches.m3}} <a href="https://www.usenix.org/legacy/event/sec10/tech/full_papers/Motoyama.pdf">Motoyama et al.</a></li>
+            </ul>
+          </div>
+        </div>
+        <p>{{catches.answer}}</p>
+        <p class="hint">{{catches.sources}} <a href="https://arxiv.org/pdf/2609.18518">Robot Visions</a> · <a href="https://arxiv.org/html/2607.18659v1">Broken Gates</a> · <a href="https://www.usenix.org/system/files/usenixsecurity25-teoh.pdf">Halligan</a> · <a href="https://arxiv.org/html/2406.07647v2">FP-Inconsistent</a></p>
       </section>
 
       <section class="limits" aria-labelledby="limits-title">

@@ -21,7 +21,8 @@ import {
 } from "../index";
 import type { LlmSettings } from "../llm/index";
 import { THRESHOLDS, verdictOf } from "../score/index";
-import { type Lang, langOf, MESSAGES, type MessageKey } from "./i18n";
+import type { NotabotSignals } from "../signals/types";
+import { type Lang, langOf, MESSAGES, type MessageKey, type Messages } from "./i18n";
 import { STYLES } from "./styles";
 
 export type State = "idle" | "checking" | "challenge" | "human" | "bot" | "error";
@@ -76,9 +77,13 @@ export class NotabotCheck extends Base {
   #local: VisibleChallenge | null = null;
   #running: AbortController | null = null;
   #error: NotabotErrorCode | null = null;
+  /** Whether the visible challenge was shown in this check. */
+  #challenged = false;
   #refreshTimer: ReturnType<typeof setTimeout> | undefined;
   /** A model to ask, set from script (a proxy's settings, or a visitor's saved ones). */
   llm: LlmSettings | null = null;
+  /** Signals the page already collected, so the check does not read them again. */
+  signals: NotabotSignals | null = null;
 
   get state(): State {
     return this.#state;
@@ -90,11 +95,15 @@ export class NotabotCheck extends Base {
     return this.#token;
   }
 
+  /** Strings that replace the built-in ones, by key (also `data-msg-<key>` attributes). */
+  messages: Partial<Messages> = {};
+
   #lang(): Lang {
     return langOf(this.getAttribute("lang") || document.documentElement.lang);
   }
   #t(key: MessageKey): string {
-    return MESSAGES[this.#lang()][key];
+    const attribute = this.dataset[`msg${key[0]?.toUpperCase()}${key.slice(1)}`];
+    return this.messages[key] ?? attribute ?? MESSAGES[this.#lang()]?.[key] ?? MESSAGES.en[key];
   }
 
   connectedCallback(): void {
@@ -128,6 +137,7 @@ export class NotabotCheck extends Base {
     this.#running = running;
     this.#slides = 0;
     this.#local = null;
+    this.#challenged = false;
     this.#bot = null;
     this.#error = null;
     clearTimeout(this.#refreshTimer);
@@ -145,6 +155,7 @@ export class NotabotCheck extends Base {
       const result = await check({
         behavior: sharedTracker(),
         challenge: challengeUrl || "local",
+        ...(this.signals ? { signals: this.signals } : {}),
         llm,
         ...(verifyUrl ? { verifyUrl } : {}),
         ...(Number.isFinite(weight) && this.hasAttribute("rules-weight")
@@ -230,6 +241,7 @@ export class NotabotCheck extends Base {
   ): void {
     const result = this.#result;
     if (!result) return;
+    this.#challenged ||= challenged;
     let bot = server?.bot ?? result.bot;
     // The slider settles doubt; it never overturns a decisive "bot" from the signals.
     if (challenged && verdict === "human" && bot >= THRESHOLDS.bot) verdict = "bot";
@@ -284,61 +296,54 @@ export class NotabotCheck extends Base {
       form.append(input);
     }
     input.value = this.#state === "human" ? this.#token : "";
+    if (!this.hasAttribute("no-honeypot") && !form.querySelector("[data-notabot-honeypot]"))
+      form.append(honeypot(`${name}-hp`));
   }
 
-  #render(): void {
-    const root = this.#root;
-    if (!root) return;
-    const theme = this.getAttribute("theme") ?? "auto";
-    const state = this.#state;
-    const t = (k: MessageKey) => this.#t(k);
-    const status =
-      state === "checking"
-        ? t((this.#step && this.#step !== "done" ? this.#step : "signals") as MessageKey)
-        : state === "idle"
-          ? ""
-          : state === "challenge"
-            ? t("unsure")
-            : state === "error" && this.#error
-              ? t(ERROR_MESSAGES[this.#error])
-              : t(state);
-    root.replaceChildren();
-    const box = el("div", { class: "box", "data-state": state, "data-theme": theme });
-    const button = el("button", {
+  /** The parts built once and updated in place, so focus and the live region survive. */
+  #parts: {
+    box: HTMLDivElement;
+    seal: HTMLButtonElement;
+    label: HTMLSpanElement;
+    status: HTMLSpanElement;
+    retry: HTMLButtonElement;
+    challenge: HTMLDivElement;
+    details: HTMLDivElement;
+    by: HTMLAnchorElement;
+  } | null = null;
+  /** Which challenge view is on screen (kind and attempt): rebuilt only when it changes. */
+  #challengeShown: string | null = null;
+
+  #build(root: ShadowRoot) {
+    const box = el("div", { class: "box" });
+    const label = el("span", { class: "label", id: "notabot-label" });
+    // A checkbox to assistive technology: unchecked, checking (mixed), checked.
+    const seal = el("button", {
       type: "button",
       class: "seal",
-      "aria-label": t("start"),
-      "aria-pressed": String(state === "human"),
+      role: "checkbox",
+      "aria-labelledby": "notabot-label",
+      "aria-describedby": "notabot-status",
     });
-    button.disabled = state === "checking" || state === "human" || state === "challenge";
-    button.append(el("span", { class: "mark", "aria-hidden": "true" }));
-    button.addEventListener("click", () => void this.run());
+    seal.append(el("span", { class: "mark", "aria-hidden": "true" }));
+    seal.addEventListener("click", () => void this.run());
+    // One live region for the widget's life: replacing it would silence screen readers.
+    const status = el("span", { class: "status", id: "notabot-status", role: "status" });
     const text = el("div", { class: "text" });
-    text.append(el("span", { class: "label" }, t("label")));
-    const live = el("span", { class: "status", role: "status", "aria-live": "polite" }, status);
-    text.append(live);
+    text.append(label, status);
+    const retry = el("button", { type: "button", class: "retry" });
+    retry.addEventListener("click", () => void this.run());
     const row = el("div", { class: "row" });
-    row.append(button, text);
-    if (state === "bot" || state === "error") {
-      const retry = el("button", { type: "button", class: "retry" }, t("retry"));
-      retry.addEventListener("click", () => void this.run());
-      row.append(retry);
-    }
-    box.append(row);
-    if (state === "challenge") box.append(this.#challengeView());
-    const result = this.#result;
-    if (result && state !== "checking") box.append(this.#details(result));
-    const foot = el(
-      "a",
-      {
-        class: "by",
-        href: "https://maxgfr.github.io/notabot/",
-        target: "_blank",
-        rel: "noopener",
-      },
-      t("by"),
-    );
-    box.append(foot);
+    row.append(seal, text, retry);
+    const challenge = el("div", { class: "challenge" });
+    const details = el("div", { class: "detail-slot" });
+    const by = el("a", {
+      class: "by",
+      href: "https://maxgfr.github.io/notabot/",
+      target: "_blank",
+      rel: "noopener",
+    });
+    box.append(row, challenge, details, by);
     // A constructed stylesheet passes a strict CSP (style-src 'self'); <style> is the fallback.
     if (
       "adoptedStyleSheets" in root &&
@@ -354,6 +359,53 @@ export class NotabotCheck extends Base {
       style.textContent = STYLES;
       root.append(style, box);
     }
+    return { box, seal, label, status, retry, challenge, details, by };
+  }
+
+  #render(): void {
+    const root = this.#root;
+    if (!root) return;
+    this.#parts ??= this.#build(root);
+    const p = this.#parts;
+    const state = this.#state;
+    const t = (k: MessageKey) => this.#t(k);
+    p.box.dataset.state = state;
+    p.box.dataset.theme = this.getAttribute("theme") ?? "auto";
+    p.label.textContent = t("label");
+    p.seal.setAttribute(
+      "aria-checked",
+      state === "human"
+        ? "true"
+        : state === "checking" || state === "challenge"
+          ? "mixed"
+          : "false",
+    );
+    p.seal.disabled = state === "checking" || state === "human" || state === "challenge";
+    const status =
+      state === "checking"
+        ? t((this.#step && this.#step !== "done" ? this.#step : "signals") as MessageKey)
+        : state === "idle"
+          ? ""
+          : state === "challenge"
+            ? t("unsure")
+            : state === "error" && this.#error
+              ? t(ERROR_MESSAGES[this.#error])
+              : t(state);
+    if (p.status.textContent !== status) p.status.textContent = status;
+    p.retry.textContent = t("retry");
+    p.retry.hidden = state !== "bot" && state !== "error";
+    p.by.textContent = t("by");
+    // The challenge view is replaced only when a new one is due (another kind or attempt).
+    const shown = state === "challenge" ? `${this.#visible().kind}:${this.#slides}` : null;
+    if (shown !== this.#challengeShown) {
+      this.#challengeShown = shown;
+      p.challenge.replaceChildren(...(shown ? [this.#challengeView()] : []));
+    }
+    const result = this.#result;
+    const open = p.details.querySelector("details")?.open ?? false;
+    p.details.replaceChildren(...(result && state !== "checking" ? [this.#details(result)] : []));
+    const details = p.details.querySelector("details");
+    if (details) details.open = open;
   }
 
   #details(result: CheckResult): HTMLElement {
@@ -365,6 +417,7 @@ export class NotabotCheck extends Base {
     add(this.#t("flags"), result.rules.flags.map((f) => f.id).join(", ") || "—");
     if (result.solution) add(this.#t("pow_took"), `${result.solution.took} ms`);
     details.append(dl);
+    if (this.#challenged) details.append(el("p", { class: "note" }, this.#t("friction")));
     if (!result.signed) details.append(el("p", { class: "note" }, this.#t("unsigned")));
     return details;
   }
@@ -587,6 +640,30 @@ export class NotabotCheck extends Base {
     });
     return wrap;
   }
+}
+
+/**
+ * A field no person sees or reaches: off screen, out of the tab order, hidden from assistive
+ * technology, autocomplete off. A script that fills every input fills it; the tracker and the
+ * middleware both notice.
+ */
+function honeypot(name: string): HTMLInputElement {
+  const trap = document.createElement("input");
+  trap.type = "text";
+  trap.name = name;
+  trap.tabIndex = -1;
+  trap.autocomplete = "off";
+  trap.setAttribute("aria-hidden", "true");
+  trap.dataset.notabotHoneypot = "";
+  Object.assign(trap.style, {
+    position: "absolute",
+    left: "-10000px",
+    width: "1px",
+    height: "1px",
+    opacity: "0",
+    pointerEvents: "none",
+  });
+  return trap;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(

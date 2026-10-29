@@ -29,6 +29,8 @@ import type { NotabotSignals } from "./signals/types";
 export type Step = "signals" | "rules" | "pow" | "model" | "verify" | "done";
 
 export interface CheckOptions {
+  /** Signals already collected (the page read them on arrival): not read a second time. */
+  signals?: NotabotSignals;
   /** Pointer and key activity so far (see `trackBehavior`). */
   behavior?: BehaviorTracker | null;
   /**
@@ -209,7 +211,7 @@ async function localOpinion(
 export async function check(options: CheckOptions = {}): Promise<CheckResult> {
   const step = (s: Step) => options.onStep?.(s);
   step("signals");
-  const signals = await collect();
+  const signals = options.signals ?? (await collect());
   const behavior = options.behavior?.features() ?? null;
   step("rules");
   const rules = score({ signals, behavior });

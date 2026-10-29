@@ -2,7 +2,7 @@
 
 import type { Http2Settings } from "./fingerprints";
 import type { Decision, Notabot, TrustProxy } from "./index";
-import { refusal, tokenFromRequest } from "./index";
+import { fieldFromRequest, refusal, tokenFromRequest } from "./index";
 import type { RequestInfo } from "./request";
 
 /** The parts of a Node / Express request the adapter reads. */
@@ -161,6 +161,11 @@ async function send(res: NodeResponseLike, response: Response): Promise<void> {
 function tokenFromNode(req: NodeRequestLike, header: string, field: string): string | null {
   const h = req.headers[header];
   if (typeof h === "string" && h) return h;
+  return fieldFromNode(req, field);
+}
+
+/** A string field of a body a parser already read. */
+function fieldFromNode(req: NodeRequestLike, field: string): string | null {
   const body = req.body as Record<string, unknown> | undefined;
   return body && typeof body === "object" && typeof body[field] === "string"
     ? (body[field] as string)
@@ -216,6 +221,7 @@ export function notabotExpress(nb: Notabot, options: ExpressOptions = {}) {
       const decision = await nb.verifyRequest(
         info,
         tokenFromNode(req, nb.options.tokenHeader, nb.options.tokenField),
+        { honeypot: fieldFromNode(req, `${nb.options.tokenField}-hp`) },
       );
       req.notabot = decision;
       if (decision.ok) return next();
@@ -252,6 +258,7 @@ export function notabotHono(
     const decision = await nb.verifyRequest(
       nb.requestInfo(c.req.raw, extra),
       await tokenFromRequest(c.req.raw, nb.options.tokenHeader, nb.options.tokenField),
+      { honeypot: await fieldFromRequest(c.req.raw, `${nb.options.tokenField}-hp`) },
     );
     c.set("notabot", decision);
     if (!decision.ok) return refusal(decision);
