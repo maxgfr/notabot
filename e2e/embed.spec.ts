@@ -54,7 +54,8 @@ test("one script tag guards a form: a stealth-patched headless browser gets no t
   );
   // webdriver is hidden and the user agent rewritten, yet the realm still contradicts itself.
   expect(flags).not.toContain("webdriver");
-  expect(flags).toEqual(expect.arrayContaining(["headless-brand", "os-mismatch"]));
+  // (os-mismatch shows up too when the runner is not Linux: the user agent here claims Linux.)
+  expect(flags).toEqual(expect.arrayContaining(["headless-brand", "software-renderer"]));
   await page.locator('button[type="submit"]').click();
   expect(page.url()).toContain("/form.html");
   await expect(token).toHaveValue("");
