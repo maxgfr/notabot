@@ -375,7 +375,9 @@ function isClick(c: unknown): c is TargetClick {
     finite(c.y) &&
     finite(c.t) &&
     typeof c.trusted === "boolean" &&
-    typeof c.key === "boolean"
+    typeof c.key === "boolean" &&
+    (c.touch === undefined || typeof c.touch === "boolean") &&
+    (c.path === undefined || finite(c.path))
   );
 }
 

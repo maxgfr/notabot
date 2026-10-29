@@ -207,34 +207,40 @@ The scores below use the correlation-capped combination described above.
 <!-- bench:start -->
 | Classifier                          | Humans passed | Humans challenged | Humans refused | Bots refused | Bots challenged | Bots passed |
 | ----------------------------------- | ------------- | ----------------- | -------------- | ------------ | --------------- | ----------- |
-| Rules alone                         | 8/8           | 0                 | 0              | 7/8          | 0               | 1           |
-| Logistic regression (leave-one-out) | 7/8           | 1                 | 0              | 5/8          | 2               | 1           |
+| Rules alone                         | 9/9           | 0                 | 0              | 7/8          | 0               | 1           |
+| Logistic regression (leave-one-out) | 7/9           | 2                 | 0              | 5/8          | 2               | 1           |
 
-16 samples: 8 human profiles built from documented setups, 8 automated browsers captured by `scripts/capture.ts`. Bot probability per sample:
+17 samples: 8 human profiles built from documented setups, 1 real browser captured by hand, 8 automated browsers captured by `scripts/capture.ts`. Bot probability per sample:
 
-| Sample               | Label | Rules | Regression |
-| -------------------- | ----- | ----- | ---------- |
-| chrome-mac           | human | 0.00  | 0.24       |
-| keyboard-only        | human | 0.00  | 0.24       |
-| screen-reader        | human | 0.00  | 0.24       |
-| privacy-extension    | human | 0.28  | 0.14       |
-| brave                | human | 0.00  | 0.16       |
-| safari               | human | 0.00  | 0.24       |
-| firefox-rfp          | human | 0.10  | 0.05       |
-| android-chrome       | human | 0.00  | 0.39       |
-| brave-automated      | bot   | 0.95  | 0.68       |
-| chrome-automated     | bot   | 0.96  | 0.91       |
-| chrome-headed-hidden | bot   | 0.00  | 0.06       |
-| headless-new         | bot   | 0.96  | 0.91       |
-| headless-shell       | bot   | 0.99  | 1.00       |
-| spoofed-windows-ua   | bot   | 0.98  | 0.97       |
-| stealth-js-layer     | bot   | 1.00  | 0.77       |
-| stealth-linux-ua     | bot   | 0.98  | 0.90       |
+| Sample                                | Label | Rules | Regression |
+| ------------------------------------- | ----- | ----- | ---------- |
+| chrome-mac                            | human | 0.00  | 0.21       |
+| keyboard-only                         | human | 0.00  | 0.21       |
+| screen-reader                         | human | 0.00  | 0.21       |
+| privacy-extension                     | human | 0.28  | 0.13       |
+| brave                                 | human | 0.00  | 0.15       |
+| safari                                | human | 0.00  | 0.21       |
+| firefox-rfp                           | human | 0.10  | 0.05       |
+| android-chrome                        | human | 0.00  | 0.36       |
+| brave-automated                       | bot   | 0.95  | 0.50       |
+| chrome-automated                      | bot   | 0.96  | 0.92       |
+| chrome-headed-hidden                  | bot   | 0.00  | 0.05       |
+| headless-new                          | bot   | 0.96  | 0.92       |
+| headless-shell                        | bot   | 0.99  | 1.00       |
+| human-brave-156-on-macos-real-profile | human | 0.00  | 0.36       |
+| spoofed-windows-ua                    | bot   | 0.98  | 0.94       |
+| stealth-js-layer                      | bot   | 1.00  | 0.79       |
+| stealth-linux-ua                      | bot   | 0.98  | 0.94       |
 <!-- bench:end -->
 
 Read it for what it is: every automated browser but one carries a trace the rules know, and the
-one that does not (a headed Chrome with `AutomationControlled` off) passes all three. The
-regression trained on 16 samples is weaker than the rules it learned from; it ships as
+one that does not (a headed Chrome with `AutomationControlled` off) passes all three. The real
+Brave (farbled canvas, audio and core count, its own WebGL renderer name) raises no rule; FingerprintJS's
+open-source BotD, run on the same live browsers, gave the same verdicts, the hidden headed Chrome
+("not a bot") included. An AI agent driving
+that same Brave through a browser extension is called human too: the slider refused its
+straight drag, and the targets now refuse clicks that jump onto each target. The regression,
+trained on so few samples, is weaker than the rules it learned from; it ships as
 `classifyLocal()`, a free, deterministic second opinion (`check({ local: true })`, and the demo's
 report), never as the decision.
 
@@ -277,7 +283,7 @@ What a request is checked for (`REQUEST_RULES`, extensible with your own `rules`
 - **Missing browser headers:** Accept-Language, Accept and Accept-Encoding, which every browser sends.
 - **Client hints:** missing sec-ch-ua on Chromium; sec-ch-ua-platform or sec-ch-ua-mobile contradicting the User-Agent; a HeadlessChrome brand.
 - **Fetch metadata:** missing Sec-Fetch-* headers on a modern browser.
-- **Protocol and network:** a Chromium speaking HTTP/1.x; an IP on a hosting network (from `request.cf` or the `network` you pass).
+- **Protocol and network:** a Chromium speaking HTTP/1.x to you (only when the protocol is the client's: Cloudflare's `request.cf`, or TLS Node terminates itself; behind a proxy or on plain HTTP the last hop's protocol says nothing); an IP on a hosting network (from `request.cf` or the `network` you pass).
 - **Rate:** an optional burst limit per IP (`ratePerMinute`), which also caps `/challenge`.
 - **TLS (JA4):** a browser User-Agent over a handshake no current browser makes (below TLS 1.3, no
   server name, no HTTP/2 or 3 offered by ALPN): `ja4-ua-mismatch`. The JA4 comes from Cloudflare's

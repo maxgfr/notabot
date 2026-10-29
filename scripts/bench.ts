@@ -157,10 +157,12 @@ const detail = samples
   )
   .join("\n");
 
-const humans = samples.filter((s) => s.label === "human").length;
+const profiles = humanProfiles().length;
+const realHumans = captured.filter((s) => s.label === "human").length;
+const bots = samples.filter((s) => s.label === "bot").length;
 const report = `${table}
 
-${samples.length} samples: ${humans} human profiles built from documented setups, ${samples.length - humans} automated browsers captured by \`scripts/capture.ts\`. Bot probability per sample:
+${samples.length} samples: ${profiles} human profiles built from documented setups, ${realHumans} real browser${realHumans === 1 ? "" : "s"} captured by hand, ${bots} automated browsers captured by \`scripts/capture.ts\`. Bot probability per sample:
 
 | Sample | Label | Rules | Regression |${withModel ? " Rules + model |" : ""}
 | --- | --- | --- | --- |${withModel ? " --- |" : ""}

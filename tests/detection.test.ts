@@ -58,6 +58,23 @@ describe("JA4, JA4H, HTTP/2", () => {
     expect(infoFromNode({ headers: python }).ja4).toBeNull();
   });
 
+  test("HTTP/1.1 counts against a Chromium only when it is the client's protocol", () => {
+    const headers = { ...chromeHeaders(UA), host: "site.dev" };
+    // Plain HTTP, or a proxy forwarding HTTP/1.1: the last hop's protocol says nothing.
+    const behindProxy = infoFromNode({ method: "GET", url: "/", headers, httpVersion: "1.1" });
+    expect(behindProxy.httpVersion).toBeNull();
+    expect(ids(requestFlags(behindProxy))).not.toContain("http1-chromium");
+    // TLS Node terminates itself: that is the browser speaking HTTP/1.1.
+    const direct = infoFromNode({
+      method: "GET",
+      url: "/",
+      headers,
+      httpVersion: "1.1",
+      socket: { encrypted: true },
+    });
+    expect(ids(requestFlags(direct))).toContain("http1-chromium");
+  });
+
   test("JA4H: its readable part, and the header order when the platform keeps it", async () => {
     const headers = new Headers({
       "user-agent": UA,
