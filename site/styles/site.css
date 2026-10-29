@@ -929,7 +929,8 @@ pre {
   overflow-wrap: anywhere;
 }
 /* The tag visitors copy is never clipped. */
-.embed-steps .snippet:first-child {
+.embed-steps .snippet:first-child,
+.embed-steps .snippet:last-child {
   grid-column: 1 / -1;
 }
 .snippet h3 {

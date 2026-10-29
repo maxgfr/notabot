@@ -47,6 +47,12 @@ if (parseVerdict('{"verdict":"bot","confidence":1}')?.verdict !== "bot") throw n
 if (sanitizeFeatures({ x: "free text" }).x !== undefined) throw new Error("sanitize");
 if (!proxySettings("https://x.dev/v1")) throw new Error("proxy");
 if (fnv1a("a").length !== 8) throw new Error("signals");
+const { createNotabot, infoFromNode } = await import("notabot/middleware");
+const nb = createNotabot({ hmacKey: "k", maxnumber: 500 });
+const curl = await nb.verifyRequest(infoFromNode({ method: "GET", url: "/", headers: { host: "a.dev", "user-agent": "curl/8" } }));
+if (curl.ok || curl.reason !== "missing-token") throw new Error("middleware: " + JSON.stringify(curl));
+const gated = await nb.protect(() => new Response("in"))(new Request("https://a.dev/notabot/challenge"));
+if ((await gated.json()).algorithm !== "SHA-256") throw new Error("middleware routes");
 console.log("node imports ok");
 `,
   );
@@ -63,6 +69,11 @@ import { createChallenge, verifyToken, type TokenClaims } from "notabot/server";
 import { defineNotabot, mountNotabot, guardForm, type NotabotCheck, type VerdictDetail } from "notabot/widget";
 import { attributesFromDataset } from "notabot/embed";
 import { collectEnv, snapshotOf, type RealmSnapshot } from "notabot/signals";
+import { createNotabot, notabotExpress, notabotHono, kvStore, type Decision, type RequestRule } from "notabot/middleware";
+const rule: RequestRule = { id: "x", weight: 0.1, explain: "", test: (i) => i.ja4 ?? null };
+export const nb = createNotabot({ hmacKey: "k", rules: [rule] });
+export const mw = [notabotExpress(nb), notabotHono(nb), kvStore];
+export type D = Decision;
 const verdict: Verdict = "human";
 export const all = [check, collect, score, trackBehavior, claimedSystems, blend, judgeSlide, solveChallenge, classify, toFeatures, visitorStore, createChallenge, verifyToken, defineNotabot, mountNotabot, guardForm, attributesFromDataset, collectEnv, snapshotOf, verdict];
 export type T = [CheckResult, NotabotSignals, ScoreResult, Rule, BehaviorFeatures, Challenge, Solution, Features, ModelVerdict, TokenClaims, NotabotCheck, VerdictDetail, RealmSnapshot];

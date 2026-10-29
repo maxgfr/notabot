@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import worker from "../examples/cloudflare-worker/worker";
 import type { Challenge } from "../src/pow/index";
 import { encodeSolution, search } from "../src/pow/index";
+import { chromeHeaders } from "./browser-headers";
 import { headlessChromium, realChrome } from "./fixtures";
 
 const env = { NOTABOT_HMAC_KEY: "k", NOTABOT_SITE_SECRET: "s", MAX_NUMBER: "1500" };
@@ -37,7 +38,7 @@ describe("example Cloudflare Worker", () => {
     const res = await call(
       "/verify",
       { method: "POST", body: JSON.stringify({ signals, solution: await solved() }) },
-      { "user-agent": signals.env.userAgent, "accept-language": "fr-FR,fr;q=0.9" },
+      chromeHeaders(signals.env.userAgent),
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as { token: string; verdict: string };

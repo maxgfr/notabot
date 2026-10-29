@@ -79,7 +79,7 @@
   "network.scaleTitle": "Comportement à grande échelle",
   "network.scale": "Des milliers de sessions sur le même parcours, aux mêmes rythmes : invisible depuis un navigateur, flagrant depuis le serveur.",
   "embed.title": "Mettez-le sur votre site",
-  "embed.lede": "Trois façons, d'une ligne à un serveur qui signe ses verdicts.",
+  "embed.lede": "Quatre façons, d'une ligne à un serveur qui vérifie chaque requête.",
   "embed.scriptTitle": "Une balise script",
   "embed.scriptHint": "Ajoute la vérification au formulaire et retient l'envoi tant qu'elle n'est pas passée. Le jeton arrive dans un champ caché notabot-token.",
   "embed.npmTitle": "Le paquet npm",
@@ -102,5 +102,7 @@
   "stamp.error": "Non traité",
   "status.error": "La vérification a échoué : {error}",
   "papers.took": "Collecté en {ms} ms.",
-  "officer.loadingProviders": "Chargement des fournisseurs…"
+  "officer.loadingProviders": "Chargement des fournisseurs…",
+  "embed.middlewareTitle": "Un middleware sur votre serveur",
+  "embed.middlewareHint": "Valide la requête elle-même (les en-têtes qu'un navigateur envoie toujours, client hints, bibliothèques HTTP, protocole, réseau) et le jeton : signé, lié à son navigateur et à son IP, à usage unique. Express, Hono ou tout serveur Fetch (Next.js, Bun, Workers)."
 }

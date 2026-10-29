@@ -27,7 +27,10 @@
     "llm-connect",
     "web-components",
     "github-pages",
-    "privacy"
+    "privacy",
+    "middleware",
+    "express",
+    "hono"
   ],
   "exports": {
     ".": {
@@ -57,6 +60,10 @@
     "./server": {
       "types": "./dist/types/server/index.d.ts",
       "default": "./dist/lib/server/index.js"
+    },
+    "./middleware": {
+      "types": "./dist/types/middleware/index.d.ts",
+      "default": "./dist/lib/middleware/index.js"
     },
     "./widget": {
       "types": "./dist/types/widget/index.d.ts",

@@ -89,17 +89,18 @@ result.rules.flags; // [{ id, weight, explain, detail }]
 
 Every layer is its own entry point:
 
-| Import             |                                                                                                             |
-| ------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `notabot`          | `check()`, the whole flow                                                                                   |
-| `notabot/signals`  | `collect()` and each collector                                                                              |
-| `notabot/score`    | `RULES`, `score()`, `blend()`                                                                               |
-| `notabot/behavior` | `trackBehavior()`, `analyzeTrajectory()`, `judgeSlide()`                                                    |
-| `notabot/pow`      | `localChallenge()`, `solveChallenge()`, `fetchChallenge()`                                                  |
-| `notabot/llm`      | `toFeatures()`, `classify()`, `visitorStore()` (llm-connect), `SYSTEM_PROMPT`                               |
-| `notabot/server`   | `createChallenge()`, `verifySolution()`, `signToken()`, `verifyToken()` (WebCrypto: Bun, Node 20+, Workers) |
-| `notabot/widget`   | `defineNotabot()`, `mountNotabot()`, `guardForm()`                                                          |
-| `notabot/embed`    | the script-tag bootstrap                                                                                    |
+| Import               |                                                                                                             |
+| -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `notabot`            | `check()`, the whole flow                                                                                   |
+| `notabot/signals`    | `collect()` and each collector                                                                              |
+| `notabot/score`      | `RULES`, `score()`, `blend()`                                                                               |
+| `notabot/behavior`   | `trackBehavior()`, `analyzeTrajectory()`, `judgeSlide()`                                                    |
+| `notabot/pow`        | `localChallenge()`, `solveChallenge()`, `fetchChallenge()`                                                  |
+| `notabot/llm`        | `toFeatures()`, `classify()`, `visitorStore()` (llm-connect), `SYSTEM_PROMPT`                               |
+| `notabot/server`     | `createChallenge()`, `verifySolution()`, `signToken()`, `verifyToken()` (WebCrypto: Bun, Node 20+, Workers) |
+| `notabot/middleware` | `createNotabot()`, `notabotExpress()`, `notabotHono()`, `REQUEST_RULES`: validate requests on the server    |
+| `notabot/widget`     | `defineNotabot()`, `mountNotabot()`, `guardForm()`                                                          |
+| `notabot/embed`      | the script-tag bootstrap                                                                                    |
 
 ## AI models
 
@@ -109,10 +110,64 @@ point at a proxy or Worker, or use a local Ollama. Suggested small models come f
 `assets/recommended.json`), and the provider catalog is `llm-models catalog`. On your site, never
 put a key in the page: use `endpoint` with a proxy, or let the Worker call the model.
 
+## Enforce on your server: the middleware
+
+`notabot/middleware` validates requests where they land, with more than the page can see: the
+headers the browser really sent, the protocol, the network, and the token the page obtained.
+
+```ts
+import express from "express";
+import { createNotabot, notabotExpress } from "notabot/middleware";
+
+const notabot = createNotabot({
+  hmacKey: process.env.NOTABOT_HMAC_KEY!,
+  allowedOrigins: ["https://example.com"],
+});
+
+const app = express();
+app.use(express.urlencoded({ extended: false }), express.json());
+// Serves /notabot/challenge, /notabot/verify, /notabot/siteverify, then gates what follows.
+app.post("/signup", notabotExpress(notabot), (req, res) =>
+  res.send(`welcome (${req.notabot.verdict})`),
+);
+```
+
+On the page, point the widget at your own server: `challenge-url="/notabot/challenge"` and
+`verify-url="/notabot/verify"`. The token arrives in the `notabot-token` field or the
+`x-notabot-token` header.
+
+| Adapter                              |                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| `notabot.protect(handler)`           | any Fetch server: Next.js route handlers, Bun.serve, Deno, Workers |
+| `notabotExpress(notabot)`            | Express, Connect, node:http; the decision is on `req.notabot`      |
+| `notabotHono(notabot)`               | Hono; the decision is `c.get("notabot")`                           |
+| `notabot.verifyRequest(info, token)` | the decision alone, for anything else                              |
+
+What a request is checked for (`REQUEST_RULES`, extensible with your own `rules`):
+
+- **Self-named clients:** curl, python-requests, Go, axios, Scrapy, headless tools, a missing User-Agent.
+- **Missing browser headers:** Accept-Language, Accept and Accept-Encoding, which every browser sends.
+- **Client hints:** missing sec-ch-ua on Chromium; sec-ch-ua-platform or sec-ch-ua-mobile contradicting the User-Agent; a HeadlessChrome brand.
+- **Fetch metadata:** missing Sec-Fetch-* headers on a modern browser.
+- **Protocol and network:** a Chromium speaking HTTP/1.x; an IP on a hosting network (from `request.cf` or the `network` you pass).
+- **Rate:** an optional burst limit per IP (`ratePerMinute`).
+
+The token's checks:
+
+- **Signature and expiry.**
+- **Allowed origin.**
+- **Binding:** it must come from the User-Agent and IP it was issued to.
+- **Single use:** a replay is refused (`memoryStore()` by default, `kvStore()` for KV, Redis…).
+
+The page's front-only `unsigned.` tokens are refused unless `allowUnsigned` is set. A refused
+request gets a 403 with the reason (`missing-token`, `token-mismatch`, `replayed-token`,
+`verdict`…) and the flags.
+
 ## Enforce with the Worker
 
 Front-end alone, a verdict can be forged: a bot can skip the script or replay a good result.
-[`examples/cloudflare-worker`](examples/cloudflare-worker) is the server half:
+[`examples/cloudflare-worker`](examples/cloudflare-worker) is the server half for sites without a
+server of their own, the same `createNotabot()` in a dozen lines:
 
 - `GET /challenge` signs a puzzle (HMAC, stateless, expiring);
 - `POST /verify` checks the proof of work (refusing replays through KV), re-scores the signals

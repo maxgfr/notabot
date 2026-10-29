@@ -79,7 +79,7 @@
   "network.scaleTitle": "Behaviour at scale",
   "network.scale": "Thousands of sessions on the same path with the same timings: invisible from one browser, obvious from the server.",
   "embed.title": "Put it on your site",
-  "embed.lede": "Three ways in, from one line to a server that signs its verdicts.",
+  "embed.lede": "Four ways in, from one line to a server that checks every request.",
   "embed.scriptTitle": "One script tag",
   "embed.scriptHint": "Adds the check to the form and holds back the submission until it passes. The token lands in a hidden notabot-token field.",
   "embed.npmTitle": "The npm package",
@@ -102,5 +102,7 @@
   "stamp.error": "Not processed",
   "status.error": "The check failed: {error}",
   "papers.took": "Collected in {ms} ms.",
-  "officer.loadingProviders": "Loading providers…"
+  "officer.loadingProviders": "Loading providers…",
+  "embed.middlewareTitle": "A middleware on your server",
+  "embed.middlewareHint": "Validates the request itself (headers a browser always sends, client hints, HTTP libraries, protocol, network) and the token: signed, bound to its browser and IP, used once. Express, Hono, or any Fetch server (Next.js, Bun, Workers)."
 }

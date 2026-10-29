@@ -201,6 +201,17 @@ result.rules.flags; // what tripped, and why</code></pre>
             <p class="hint">{{embed.npmHint}}</p>
           </div>
           <div class="snippet">
+            <h3>{{embed.middlewareTitle}}</h3>
+            <pre id="snippet-middleware"><code>import { createNotabot, notabotExpress } from "notabot/middleware";
+
+const notabot = createNotabot({ hmacKey: process.env.NOTABOT_HMAC_KEY });
+app.post("/signup", notabotExpress(notabot), (req, res) =&gt; {
+  req.notabot.verdict; // token checked, bound, used once
+});</code></pre>
+            <button type="button" class="button quiet" data-copy="snippet-middleware">{{embed.copy}}</button>
+            <p class="hint">{{embed.middlewareHint}}</p>
+          </div>
+          <div class="snippet">
             <h3>{{embed.workerTitle}}</h3>
             <pre id="snippet-worker"><code>&lt;notabot-check
   challenge-url="https://notabot.you.workers.dev/challenge"

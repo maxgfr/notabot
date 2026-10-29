@@ -54,7 +54,8 @@ test("one script tag guards a form: a stealth-patched headless browser gets no t
   );
   // webdriver is hidden and the user agent rewritten, yet the realm still contradicts itself.
   expect(flags).not.toContain("webdriver");
-  expect(flags).toEqual(expect.arrayContaining(["headless-brand", "os-mismatch"]));
+  // (os-mismatch shows up too when the runner is not Linux: the user agent here claims Linux.)
+  expect(flags).toEqual(expect.arrayContaining(["headless-brand", "software-renderer"]));
   await page.locator('button[type="submit"]').click();
   expect(page.url()).toContain("/form.html");
   await expect(token).toHaveValue("");
@@ -132,4 +133,27 @@ test("with the Worker: a signed puzzle, a signed token, and siteverify", async (
   const body = await verify.json();
   expect(["human", "unsure", "bot"]).toContain(body.verdict);
   expect(body.hostname).toBe("localhost");
+});
+
+test("the middleware gates a route with the token a real browser obtained", async ({ page }) => {
+  await page.goto("/worker.html");
+  const call = (token: string | null) =>
+    page.evaluate(async (t) => {
+      const res = await fetch("/protected", {
+        method: "POST",
+        headers: t ? { "x-notabot-token": t } : {},
+      });
+      return { status: res.status, body: await res.json() };
+    }, token);
+  // No token: refused before anything else.
+  expect(await call(null)).toMatchObject({ status: 403, body: { reason: "missing-token" } });
+  await widget(page).locator("button.seal").click();
+  await expect.poll(() => state(page), { timeout: 20_000 }).not.toBe("checking");
+  const token = await widget(page).evaluate((el) => (el as unknown as { token: string }).token);
+  // This stealth-patched headless browser was signed as a bot: the gate refuses it.
+  const refused = await call(token);
+  expect(refused.status).toBe(403);
+  expect(refused.body.reason).toBe("verdict");
+  // A forged token is refused as such.
+  expect((await call(`${token.slice(0, -4)}0000`)).body.reason).toBe("bad-token");
 });
