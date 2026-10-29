@@ -30,7 +30,8 @@ curl -X POST https://notabot.<you>.workers.dev/siteverify \
 
 Optional: `LLM_ENDPOINT`, `LLM_MODEL` and the secret `LLM_API_KEY` (any OpenAI-compatible API,
 e.g. OpenRouter or Groq) for the AI opinion; a KV namespace bound as `NOTABOT_KV` to refuse
-replayed puzzles and tokens across isolates; `ALLOWED_ORIGINS` for CORS.
+replayed puzzles and tokens across isolates (best effort: KV is eventually consistent, so two
+requests in the same second can both pass; Redis or a Durable Object is atomic); `ALLOWED_ORIGINS` for CORS.
 
 `bun scripts/serve.ts` in the repository runs this Worker locally at `/worker/` with the key
 `dev`, which the e2e tests use.

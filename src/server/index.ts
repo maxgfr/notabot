@@ -85,6 +85,8 @@ export interface TokenClaims {
   uah?: string;
   /** Keyed hash of the IP the token was issued to. */
   iph?: string;
+  /** Left edge of the slider's target zone, in percent, when the verdict was "unsure". */
+  zone?: number;
 }
 
 /** A compact signed token, `base64url(claims).hex(HMAC)`, for the site's backend to check. */

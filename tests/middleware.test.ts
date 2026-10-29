@@ -170,10 +170,13 @@ describe("token lifecycle", () => {
     const info = infoFromRequest(req("/x", chromeHeaders(UA)));
     expect((await nb.verifyRequest(info, null)).reason).toBe("missing-token");
     expect((await nb.verifyRequest(info, "abc.def")).reason).toBe("bad-token");
-    const unsigned = `unsigned.${btoa(JSON.stringify({ v: 1, verdict: "human", bot: 0.1, iat: 1 })).replace(/=+$/, "")}`;
+    const unsignedAt = (iat: number) =>
+      `unsigned.${btoa(JSON.stringify({ v: 1, verdict: "human", bot: 0.1, iat })).replace(/=+$/, "")}`;
+    const unsigned = unsignedAt(Math.floor(Date.now() / 1000));
     expect((await nb.verifyRequest(info, unsigned)).reason).toBe("unsigned-token");
     const dev = createNotabot({ hmacKey: "k", allowUnsigned: true });
     expect(await dev.verifyRequest(info, unsigned)).toMatchObject({ ok: true, verdict: "human" });
+    expect((await dev.verifyRequest(info, unsignedAt(1))).reason).toBe("expired-token");
     const shortLived = createNotabot({ hmacKey: "k", tokenTtl: -10, maxnumber: 1500 });
     const issued = await obtainToken(shortLived, chromeHeaders(UA));
     expect((await shortLived.verifyRequest(info, issued.token)).reason).toBe("expired-token");

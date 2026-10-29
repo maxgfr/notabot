@@ -1,4 +1,4 @@
-import type { BehaviorFeatures, BehaviorTracker } from "./behavior/index";
+import type { BehaviorFeatures, BehaviorTracker, PointerSample } from "./behavior/index";
 import type { ClassifyResult, LlmSettings } from "./llm/index";
 import { base64urlEncode } from "./pow/crypto";
 import {
@@ -49,6 +49,106 @@ export interface CheckResult {
   /** What a form posts: a server's signed token, or an unsigned summary in front-only mode. */
   token: string;
   signed: boolean;
+  /** When the signed token expires (unix seconds), as the server said; null in front-only mode. */
+  expiresAt: number | null;
+  /** Where the server put the slider's zone (percent) when its verdict was "unsure". */
+  zone: number | null;
+}
+
+/** Why a server refused: what the widget tells the visitor, and whether a retry can help. */
+export type NotabotErrorCode =
+  | "expired"
+  | "replayed"
+  | "refused"
+  | "rate-limited"
+  | "malformed"
+  | "network";
+
+export class NotabotError extends Error {
+  readonly code: NotabotErrorCode;
+  readonly status: number | null;
+  constructor(code: NotabotErrorCode, message: string, status: number | null = null) {
+    super(message);
+    this.name = "NotabotError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+const CODES = new Set<string>(["expired", "replayed", "refused", "rate-limited", "malformed"]);
+
+/** POSTs JSON to a notabot endpoint; a refusal becomes a {@link NotabotError} with its code. */
+async function postJson(
+  url: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<Record<string, unknown>> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "omit",
+      body: JSON.stringify(body),
+      ...(signal ? { signal } : {}),
+    });
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    throw new NotabotError("network", `notabot: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  const out = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    const reason = typeof out.reason === "string" && CODES.has(out.reason) ? out.reason : "refused";
+    const error = typeof out.error === "string" ? out.error : `${res.status}`;
+    throw new NotabotError(reason as NotabotErrorCode, `notabot: ${error}`, res.status);
+  }
+  return out;
+}
+
+/** The slide endpoint next to a verify URL: `…/notabot/verify` → `…/notabot/slide`. */
+export function slideUrlOf(verifyUrl: string): string {
+  return new URL(
+    "slide",
+    new URL(verifyUrl, typeof location !== "undefined" ? location.href : undefined),
+  ).href;
+}
+
+export interface SlideAnswer {
+  passed: boolean;
+  verdict: Verdict;
+  /** A new token, signed "human", when the gesture passed. */
+  token?: string;
+  bot?: number;
+  exp?: number;
+  attemptsLeft?: number;
+}
+
+/**
+ * Sends a slider gesture to the server, which judges it again and re-signs the token: in
+ * signed mode, the page's own judgement of the slide counts for nothing.
+ */
+export async function submitSlide(
+  url: string,
+  body: {
+    token: string;
+    samples?: PointerSample[];
+    track?: { left: number; width: number };
+    keyTimes?: number[];
+    keysTrusted?: boolean;
+    position?: number;
+    landed?: boolean;
+  },
+  signal?: AbortSignal,
+): Promise<SlideAnswer> {
+  const out = await postJson(url, body, signal);
+  return {
+    passed: out.passed === true,
+    verdict: (out.verdict as Verdict) ?? "unsure",
+    ...(typeof out.token === "string" ? { token: out.token } : {}),
+    ...(typeof out.bot === "number" ? { bot: out.bot } : {}),
+    ...(typeof out.exp === "number" ? { exp: out.exp } : {}),
+    ...(typeof out.attemptsLeft === "number" ? { attemptsLeft: out.attemptsLeft } : {}),
+  };
 }
 
 /** The unsigned summary a front-only page can post: readable, forgeable, for demos only. */
@@ -76,8 +176,8 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
   step("rules");
   const rules = score({ signals, behavior });
 
-  let solution: Solution | null = null;
-  if (options.challenge !== false) {
+  const solve = async (): Promise<Solution | null> => {
+    if (options.challenge === false) return null;
     step("pow");
     const source = options.challenge ?? "local";
     const challenge =
@@ -86,12 +186,14 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
         : typeof source === "string"
           ? await fetchChallenge(source)
           : source;
-    solution = await solveChallenge(challenge, options.signal ? { signal: options.signal } : {});
-  }
+    return solveChallenge(challenge, options.signal ? { signal: options.signal } : {});
+  };
+  let solution = await solve();
 
   let model: ClassifyResult | null = null;
   let modelError: string | null = null;
-  if (options.llm) {
+  // With a server, the server asks its own model: the page's would be a second, forgeable opinion.
+  if (options.llm && !options.verifyUrl) {
     step("model");
     const llm = await import("./llm/index");
     try {
@@ -112,26 +214,52 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
   let verdict = verdictOf(bot);
   let token = unsignedToken(verdict, bot, solution);
   let signed = false;
+  let expiresAt: number | null = null;
+  let zone: number | null = null;
 
   if (options.verifyUrl) {
     step("verify");
-    const res = await fetch(options.verifyUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      credentials: "omit",
-      body: JSON.stringify({ signals, behavior, solution: solution && encodeSolution(solution) }),
-      ...(options.signal ? { signal: options.signal } : {}),
-    });
-    if (!res.ok) throw new Error(`notabot: verify ${res.status}`);
-    const body = (await res.json()) as { token?: string; verdict?: Verdict; bot?: number };
-    if (typeof body.token !== "string") throw new Error("notabot: verify gave no token");
+    const url = options.verifyUrl;
+    const send = () =>
+      postJson(
+        url,
+        { signals, behavior, solution: solution && encodeSolution(solution) },
+        options.signal,
+      );
+    let body: Record<string, unknown>;
+    try {
+      body = await send();
+    } catch (e) {
+      // A puzzle that expired while the tab slept: one fresh puzzle, one more try.
+      if (!(e instanceof NotabotError && e.code === "expired")) throw e;
+      solution = await solve();
+      step("verify");
+      body = await send();
+    }
+    if (typeof body.token !== "string")
+      throw new NotabotError("malformed", "notabot: verify gave no token");
     token = body.token;
     signed = true;
     if (typeof body.bot === "number") bot = body.bot;
-    if (body.verdict) verdict = body.verdict;
+    if (typeof body.verdict === "string") verdict = body.verdict as Verdict;
+    if (typeof body.exp === "number") expiresAt = body.exp;
+    if (typeof body.zone === "number") zone = body.zone;
   }
   step("done");
-  return { signals, behavior, rules, solution, model, modelError, bot, verdict, token, signed };
+  return {
+    signals,
+    behavior,
+    rules,
+    solution,
+    model,
+    modelError,
+    bot,
+    verdict,
+    token,
+    signed,
+    expiresAt,
+    zone,
+  };
 }
 
 export { trackBehavior } from "./behavior/index";

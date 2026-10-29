@@ -86,7 +86,7 @@ describe("example Cloudflare Worker", () => {
     expect((await post()).status).toBe(200);
     const again = await post();
     expect(again.status).toBe(403);
-    expect(await again.json()).toEqual({ error: "proof of work: replayed" });
+    expect(await again.json()).toEqual({ error: "proof of work: replayed", reason: "replayed" });
     const forged = await call("/verify", {
       method: "POST",
       body: JSON.stringify({ signals: realChrome(), solution: `${solution.slice(0, -4)}AAAA` }),
@@ -99,6 +99,6 @@ describe("example Cloudflare Worker", () => {
       new Request("https://w.dev/challenge", { headers: { origin: "https://evil.dev" } }),
       { ...env, ALLOWED_ORIGINS: "https://site.dev" },
     );
-    expect(res.headers.get("access-control-allow-origin")).toBe("null");
+    expect(res.headers.get("access-control-allow-origin")).toBeNull();
   });
 });

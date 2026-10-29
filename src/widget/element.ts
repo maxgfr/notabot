@@ -5,7 +5,16 @@ import {
   type PointerSample,
   trackBehavior,
 } from "../behavior/index";
-import { type CheckResult, check, type Step, unsignedToken } from "../index";
+import {
+  type CheckResult,
+  check,
+  NotabotError,
+  type NotabotErrorCode,
+  type Step,
+  slideUrlOf,
+  submitSlide,
+  unsignedToken,
+} from "../index";
 import type { LlmSettings } from "../llm/index";
 import { THRESHOLDS, verdictOf } from "../score/index";
 import { type Lang, langOf, MESSAGES, type MessageKey } from "./i18n";
@@ -32,6 +41,14 @@ export function sharedTracker(): BehaviorTracker {
 
 const Base = (typeof HTMLElement !== "undefined" ? HTMLElement : class {}) as typeof HTMLElement;
 const MAX_SLIDES = 3;
+const ERROR_MESSAGES: Record<NotabotErrorCode, MessageKey> = {
+  expired: "errorExpired",
+  replayed: "errorRefused",
+  refused: "errorRefused",
+  malformed: "error",
+  "rate-limited": "errorRate",
+  network: "errorNetwork",
+};
 let sheet: CSSStyleSheet | null = null;
 
 /**
@@ -49,6 +66,8 @@ export class NotabotCheck extends Base {
   #bot: number | null = null;
   #slides = 0;
   #running: AbortController | null = null;
+  #error: NotabotErrorCode | null = null;
+  #refreshTimer: ReturnType<typeof setTimeout> | undefined;
   /** A model to ask, set from script (a proxy's settings, or a visitor's saved ones). */
   llm: LlmSettings | null = null;
 
@@ -85,6 +104,7 @@ export class NotabotCheck extends Base {
 
   disconnectedCallback(): void {
     this.#running?.abort();
+    clearTimeout(this.#refreshTimer);
   }
 
   attributeChangedCallback(): void {
@@ -99,6 +119,8 @@ export class NotabotCheck extends Base {
     this.#running = running;
     this.#slides = 0;
     this.#bot = null;
+    this.#error = null;
+    clearTimeout(this.#refreshTimer);
     this.#set("checking");
     try {
       const endpoint = this.getAttribute("endpoint");
@@ -135,21 +157,44 @@ export class NotabotCheck extends Base {
       else this.#finish("bot", false);
     } catch (e) {
       if (running.signal.aborted) return this.#state;
-      this.#set("error");
-      this.dispatchEvent(
-        new CustomEvent("notabot:error", {
-          detail: { error: e instanceof Error ? e.message : String(e) },
-          bubbles: true,
-          composed: true,
-        }),
-      );
+      this.#fail(e);
     }
     return this.#state;
+  }
+
+  #fail(e: unknown): void {
+    this.#error = e instanceof NotabotError ? e.code : null;
+    this.#set("error");
+    this.dispatchEvent(
+      new CustomEvent("notabot:error", {
+        detail: { error: e instanceof Error ? e.message : String(e), code: this.#error },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  /**
+   * Checks again when the token is about to expire, or was just spent: a signed token is good
+   * for one use and a few minutes.
+   */
+  refresh(): void {
+    if (this.#state !== "human" && this.#state !== "bot") return;
+    void this.run();
+  }
+
+  #scheduleRefresh(): void {
+    clearTimeout(this.#refreshTimer);
+    const exp = this.#result?.expiresAt;
+    if (!exp || this.#state !== "human") return;
+    const wait = exp * 1000 - 30_000 - Date.now();
+    this.#refreshTimer = setTimeout(() => this.refresh(), Math.max(1000, wait));
   }
 
   /** Back to the empty checkbox, the token cleared. */
   reset(): void {
     this.#running?.abort();
+    clearTimeout(this.#refreshTimer);
     this.#result = null;
     this.#token = "";
     this.#slides = 0;
@@ -163,16 +208,28 @@ export class NotabotCheck extends Base {
     this.#set("challenge");
   }
 
-  #finish(verdict: "human" | "bot", challenged: boolean): void {
+  /**
+   * Settles the check. `server` is the server's answer to a slide in signed mode: its token and
+   * score replace the page's, which only a server can vouch for.
+   */
+  #finish(
+    verdict: "human" | "bot",
+    challenged: boolean,
+    server?: { token: string; bot: number; exp?: number },
+  ): void {
     const result = this.#result;
     if (!result) return;
-    let bot = result.bot;
+    let bot = server?.bot ?? result.bot;
     // The slider settles doubt; it never overturns a decisive "bot" from the signals.
     if (challenged && verdict === "human" && bot >= THRESHOLDS.bot) verdict = "bot";
     else if (challenged && verdict === "human") bot = Math.min(bot, 0.3);
     this.#bot = bot;
-    if (!result.signed) this.#token = unsignedToken(verdictOf(bot), bot, result.solution);
+    if (server) {
+      this.#token = server.token;
+      if (server.exp) result.expiresAt = server.exp;
+    } else if (!result.signed) this.#token = unsignedToken(verdictOf(bot), bot, result.solution);
     this.#set(verdict);
+    this.#scheduleRefresh();
     const detail: VerdictDetail = {
       verdict,
       bot,
@@ -231,7 +288,9 @@ export class NotabotCheck extends Base {
           ? ""
           : state === "challenge"
             ? t("unsure")
-            : t(state);
+            : state === "error" && this.#error
+              ? t(ERROR_MESSAGES[this.#error])
+              : t(state);
     root.replaceChildren();
     const box = el("div", { class: "box", "data-state": state, "data-theme": theme });
     const button = el("button", {
@@ -307,8 +366,8 @@ export class NotabotCheck extends Base {
       this.#slides ? this.#t("slideRetry") : this.#t("slideHint"),
     );
     const track = el("div", { class: "track" });
-    // Target zone somewhere in the right half, 14% wide.
-    const zoneStart = 45 + Math.random() * 38;
+    // Target zone somewhere in the right half, 14% wide; where the server put it, when it did.
+    const zoneStart = this.#result?.zone ?? 45 + Math.random() * 38;
     const zone = el("div", { class: "zone" });
     zone.style.left = `${zoneStart}%`;
     zone.style.width = "14%";
@@ -337,6 +396,32 @@ export class NotabotCheck extends Base {
       if (this.#slides >= MAX_SLIDES) return this.#finish("bot", true);
       this.#render();
       this.#root?.querySelector<HTMLElement>(".handle")?.focus();
+    };
+    // In signed mode the server judges the gesture again and signs the result: the page's own
+    // judgement would be one line of script away from "passed".
+    const verifyUrl = this.getAttribute("verify-url");
+    const slideUrl = this.getAttribute("slide-url") || (verifyUrl ? slideUrlOf(verifyUrl) : null);
+    const token = this.#result?.signed ? this.#result.token : null;
+    let pending = false;
+    const judge = (local: boolean, gesture: Omit<Parameters<typeof submitSlide>[1], "token">) => {
+      if (!slideUrl || !token) return settle(local);
+      if (pending) return;
+      pending = true;
+      handle.setAttribute("aria-disabled", "true");
+      submitSlide(slideUrl, { token, ...gesture, landed: landed() }, this.#running?.signal)
+        .then((answer) => {
+          if (answer.passed && answer.token)
+            return this.#finish("human", true, {
+              token: answer.token,
+              bot: answer.bot ?? 0.3,
+              ...(answer.exp ? { exp: answer.exp } : {}),
+            });
+          if (answer.verdict === "bot") return this.#finish("bot", true);
+          settle(false);
+        })
+        .catch((e) => {
+          if (!this.#running?.signal.aborted) this.#fail(e);
+        });
     };
 
     let samples: PointerSample[] = [];
@@ -368,7 +453,11 @@ export class NotabotCheck extends Base {
     const release = () => {
       if (!dragging) return;
       dragging = false;
-      settle(judgeSlide(samples, landed()).passed);
+      const r = track.getBoundingClientRect();
+      judge(judgeSlide(samples, landed()).passed, {
+        samples,
+        track: { left: r.left, width: r.width },
+      });
     };
     handle.addEventListener("pointerup", release);
     handle.addEventListener("pointercancel", release);
@@ -389,10 +478,11 @@ export class NotabotCheck extends Base {
         place(pos + step);
       } else if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        const passed = judgeKeySlide(keyTimes, keysTrusted && e.isTrusted, landed());
+        const trusted = keysTrusted && e.isTrusted;
+        const gesture = { keyTimes, keysTrusted: trusted, position: pos };
         keyTimes = [];
         keysTrusted = true;
-        settle(passed);
+        judge(judgeKeySlide(gesture.keyTimes, trusted, landed()), gesture);
       }
     });
     return wrap;
