@@ -335,14 +335,33 @@ export const RULES: Rule[] = [
     id: "robotic-pointer",
     category: "behavior",
     weight: 0.6,
-    explain: "Pointer moves in ruler-straight lines at a constant speed.",
+    explain:
+      "Pointer moves in ruler-straight lines, in even steps or at a constant speed: a script's path, whatever its clock does.",
+    // Geometry first: an automation clock adds jitter to the speed of a scripted move, but its
+    // steps stay even and its line straight (judgeSlide reasons the same way).
     test: ({ behavior }) =>
       behavior &&
       behavior.moves >= 10 &&
       behavior.straightness > 0.995 &&
-      behavior.speedCv < 0.05 &&
+      (behavior.stepCv < 0.05 || behavior.speedCv < 0.05) &&
       behavior.jitter < 0.3
-        ? `straightness ${behavior.straightness}, speed cv ${behavior.speedCv}`
+        ? `straightness ${behavior.straightness}, step cv ${behavior.stepCv}, speed cv ${behavior.speedCv}`
+        : null,
+  },
+  {
+    id: "robotic-typing",
+    category: "behavior",
+    weight: 0.5,
+    explain:
+      "Keys pressed and released at a metronome's pace: a script typing with a fixed delay. People's rhythm varies.",
+    test: ({ behavior }) =>
+      behavior &&
+      behavior.keys >= 10 &&
+      behavior.keyFlightCv !== null &&
+      behavior.keyDwellCv !== null &&
+      behavior.keyFlightCv < 0.05 &&
+      behavior.keyDwellCv < 0.05
+        ? `flight cv ${behavior.keyFlightCv}, dwell cv ${behavior.keyDwellCv}`
         : null,
   },
   {

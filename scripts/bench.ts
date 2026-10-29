@@ -14,9 +14,9 @@ import { type LocalModel, predictLocal, trainLocal } from "../src/llm/local";
 import {
   botProbabilityOf,
   buildPrompt,
+  chatRequests,
   type Features,
   parseVerdict,
-  SYSTEM_PROMPT,
   toFeatures,
 } from "../src/llm/prompt";
 import { isSignals } from "../src/middleware/schema";
@@ -96,38 +96,39 @@ const local = samples.map((s, i) => {
 async function askModel(features: Features): Promise<number | null> {
   const endpoint = process.env.NOTABOT_LLM_ENDPOINT;
   if (!endpoint) return null;
-  const res = await fetch(`${endpoint.replace(/\/$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(process.env.NOTABOT_LLM_API_KEY
-        ? { authorization: `Bearer ${process.env.NOTABOT_LLM_API_KEY}` }
-        : {}),
-    },
-    body: JSON.stringify({
-      model: process.env.NOTABOT_LLM_MODEL ?? "default",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: buildPrompt(features) },
-      ],
-      temperature: 0,
-      max_tokens: 300,
-    }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) return null;
+  const signal = AbortSignal.timeout(30_000);
+  let res: Response | null = null;
+  // The middleware's own requests: the schema first, then the forms other servers accept.
+  for (const body of chatRequests(
+    process.env.NOTABOT_LLM_MODEL ?? "default",
+    buildPrompt(features),
+  )) {
+    res = await fetch(`${endpoint.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(process.env.NOTABOT_LLM_API_KEY
+          ? { authorization: `Bearer ${process.env.NOTABOT_LLM_API_KEY}` }
+          : {}),
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (res.status !== 400) break;
+  }
+  if (!res?.ok) return null;
   const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const verdict = parseVerdict(body.choices?.[0]?.message?.content ?? "");
   return verdict ? botProbabilityOf(verdict) : null;
 }
 
-const withModel = process.env.NOTABOT_LLM_ENDPOINT
-  ? await Promise.all(
-      samples.map(async (s, i) => {
-        const m = await askModel(featuresOf(s)).catch(() => null);
-        return m === null ? null : blend(rules[i] as number, m);
-      }),
-    )
+// Every sample is asked, even when the rules decided: "model alone" measures the model, "rules +
+// model" what the middleware decides (it skips the model when the rules decided).
+const modelAlone = process.env.NOTABOT_LLM_ENDPOINT
+  ? await Promise.all(samples.map((s) => askModel(featuresOf(s)).catch(() => null)))
+  : null;
+const withModel = modelAlone
+  ? modelAlone.map((m, i) => (m === null ? null : blend(rules[i] as number, m)))
   : null;
 
 function summary(name: string, probs: (number | null)[]) {
@@ -145,15 +146,18 @@ const table = [
   "| --- | --- | --- | --- | --- | --- | --- |",
   summary("Rules alone", rules),
   summary("Logistic regression (leave-one-out)", local),
-  ...(withModel
-    ? [summary(`Rules + model (${process.env.NOTABOT_LLM_MODEL ?? "default"})`, withModel)]
+  ...(modelAlone && withModel
+    ? [
+        summary(`Model alone (${process.env.NOTABOT_LLM_MODEL ?? "default"})`, modelAlone),
+        summary(`Rules + model (${process.env.NOTABOT_LLM_MODEL ?? "default"})`, withModel),
+      ]
     : []),
 ].join("\n");
 
 const detail = samples
   .map(
     (s, i) =>
-      `| ${s.id} | ${s.label} | ${(rules[i] as number).toFixed(2)} | ${(local[i] as number).toFixed(2)} |${withModel ? ` ${withModel[i]?.toFixed(2) ?? "—"} |` : ""}`,
+      `| ${s.id} | ${s.label} | ${(rules[i] as number).toFixed(2)} | ${(local[i] as number).toFixed(2)} |${modelAlone && withModel ? ` ${modelAlone[i]?.toFixed(2) ?? "—"} | ${withModel[i]?.toFixed(2) ?? "—"} |` : ""}`,
   )
   .join("\n");
 
@@ -164,8 +168,8 @@ const report = `${table}
 
 ${samples.length} samples: ${profiles} human profiles built from documented setups, ${realHumans} real browser${realHumans === 1 ? "" : "s"} captured by hand, ${bots} automated browsers captured by \`scripts/capture.ts\`. Bot probability per sample:
 
-| Sample | Label | Rules | Regression |${withModel ? " Rules + model |" : ""}
-| --- | --- | --- | --- |${withModel ? " --- |" : ""}
+| Sample | Label | Rules | Regression |${withModel ? " Model alone | Rules + model |" : ""}
+| --- | --- | --- | --- |${withModel ? " --- | --- |" : ""}
 ${detail}`;
 
 console.log(report);

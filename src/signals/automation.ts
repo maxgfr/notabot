@@ -75,7 +75,13 @@ export async function collectAutomation(
       nav.mimeTypes instanceof MimeTypeArray,
     notificationPermissionMismatch: notificationMismatch,
     automationGlobals: automationGlobals(),
-    outerSizeZero: outerWidth === 0 && outerHeight === 0,
+    // A tab loaded in the background (or prerendered) has no window size until it is shown: only
+    // a visible page with no outer window says something.
+    outerSizeZero:
+      outerWidth === 0 &&
+      outerHeight === 0 &&
+      document.visibilityState === "visible" &&
+      !(document as Document & { prerendering?: boolean }).prerendering,
     emptyLanguages: !nav.languages || nav.languages.length === 0,
     softwareRenderer: SOFTWARE_RENDERER.test(renderer),
     engineClaimed: claimed,
