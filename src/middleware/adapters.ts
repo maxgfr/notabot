@@ -2,7 +2,7 @@
 
 import type { Http2Settings } from "./fingerprints";
 import type { Decision, Notabot, TrustProxy } from "./index";
-import { fieldFromRequest, refusal, tokenFromRequest } from "./index";
+import { gateInputs, refusal } from "./index";
 import type { RequestInfo } from "./request";
 
 /** The parts of a Node / Express request the adapter reads. */
@@ -263,11 +263,14 @@ export function notabotHono(
       await next();
       return undefined;
     }
-    const decision = await nb.verifyRequest(
-      nb.requestInfo(c.req.raw, extra),
-      await tokenFromRequest(c.req.raw, nb.options.tokenHeader, nb.options.tokenField),
-      { honeypot: await fieldFromRequest(c.req.raw, `${nb.options.tokenField}-hp`) },
-    );
+    const inputs = await gateInputs(c.req.raw, {
+      tokenHeader: nb.options.tokenHeader,
+      tokenField: nb.options.tokenField,
+      maxBytes: nb.options.gateBodyBytes,
+    });
+    const decision = await nb.verifyRequest(nb.requestInfo(c.req.raw, extra), inputs.token, {
+      honeypot: inputs.honeypot,
+    });
     c.set("notabot", decision);
     if (!decision.ok) return refusal(decision);
     await next();

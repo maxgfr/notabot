@@ -10,6 +10,7 @@ import {
   jwkThumbprint,
   type NodeRequestLike,
   parseJa4,
+  REQUEST_RULES,
   requestFlags,
 } from "../src/middleware/index";
 import { type Challenge, encodeSolution, search, solveChallenge } from "../src/pow/index";
@@ -239,7 +240,14 @@ describe("Web Bot Auth", () => {
 
   async function signed(
     path: string,
-    over: { created?: number; expires?: number; agent?: string; tamper?: boolean } = {},
+    over: {
+      created?: number;
+      expires?: number | null;
+      agent?: string;
+      tamper?: boolean;
+      /** Sign only the signature-agent header, not the site it was sent to. */
+      noAuthority?: boolean;
+    } = {},
   ) {
     keys ??= (await crypto.subtle.generateKey("Ed25519", true, [
       "sign",
@@ -250,9 +258,13 @@ describe("Web Bot Auth", () => {
     const keyid = await jwkThumbprint(jwk);
     const now = Math.floor(Date.now() / 1000);
     const agent = `"${over.agent ?? OPERATOR}"`;
-    const params = `("@authority" "signature-agent");created=${over.created ?? now};expires=${over.expires ?? now + 60};keyid="${keyid}";alg="ed25519";tag="web-bot-auth"`;
+    const components = over.noAuthority
+      ? '("signature-agent")'
+      : '("@authority" "signature-agent")';
+    const expires = over.expires === null ? "" : `;expires=${over.expires ?? now + 60}`;
+    const params = `${components};created=${over.created ?? now}${expires};keyid="${keyid}";alg="ed25519";tag="web-bot-auth"`;
     const base = [
-      `"@authority": site.dev`,
+      ...(over.noAuthority ? [] : [`"@authority": site.dev`]),
       `"signature-agent": ${agent}`,
       `"@signature-params": ${params}`,
     ].join("\n");
@@ -312,6 +324,72 @@ describe("Web Bot Auth", () => {
     expect((await none.verifyRequest(infoFromRequest(await signed("/a")))).reason).toBe(
       "agent-not-allowed",
     );
+  });
+
+  test("a signature that could be replayed is refused: no expiry, no site, too long a life", async () => {
+    clearAgentDirectories();
+    const nb = createNotabot({
+      hmacKey: "k",
+      agents: { allow: { [OPERATOR]: {} }, fetch: directory as typeof fetch },
+    });
+    const reason = async (r: Request) => (await nb.verifyRequest(infoFromRequest(r))).reason;
+    const now = Math.floor(Date.now() / 1000);
+    expect(await reason(await signed("/a", { expires: null }))).toBe("bad-agent-signature");
+    expect(await reason(await signed("/a", { noAuthority: true }))).toBe("bad-agent-signature");
+    expect(await reason(await signed("/a", { expires: now + 3 * 86_400 }))).toBe(
+      "bad-agent-signature",
+    );
+    expect(await reason(await signed("/a"))).toBe("verified-agent");
+  });
+
+  test("a signed agent's request-shape rules are set aside, a site's own rules are not", async () => {
+    clearAgentDirectories();
+    const blocked = {
+      id: "blocked-path",
+      weight: 0.95,
+      explain: "A path no agent may reach.",
+      test: (i: { url: string }) => (i.url.endsWith("/admin") ? "admin" : null),
+    };
+    const nb = createNotabot({
+      hmacKey: "k",
+      rules: [...REQUEST_RULES, blocked],
+      agents: { allow: { [OPERATOR]: {} }, fetch: directory as typeof fetch },
+    });
+    expect((await nb.verifyRequest(infoFromRequest(await signed("/api")))).ok).toBe(true);
+    const admin = await nb.verifyRequest(infoFromRequest(await signed("/admin")));
+    expect(admin.ok).toBe(false);
+    expect(admin.flags.map((f) => f.id)).toContain("blocked-path");
+  });
+
+  test("the newer draft's dictionary form of Signature-Agent verifies", async () => {
+    clearAgentDirectories();
+    keys ??= (await crypto.subtle.generateKey("Ed25519", true, [
+      "sign",
+      "verify",
+    ])) as CryptoKeyPair;
+    const exported = (await crypto.subtle.exportKey("jwk", keys.publicKey)) as JsonWebKey;
+    jwk = { kty: "OKP", crv: "Ed25519", x: exported.x as string };
+    const keyid = await jwkThumbprint(jwk);
+    const now = Math.floor(Date.now() / 1000);
+    const params = `("@authority" "signature-agent";key="sig1");created=${now};expires=${now + 60};keyid="${keyid}";alg="ed25519";tag="web-bot-auth"`;
+    const base = [
+      `"@authority": site.dev`,
+      `"signature-agent";key="sig1": "${OPERATOR}"`,
+      `"@signature-params": ${params}`,
+    ].join("\n");
+    const sig = new Uint8Array(
+      await crypto.subtle.sign("Ed25519", keys.privateKey, new TextEncoder().encode(base)),
+    );
+    const request = req("/api", {
+      "signature-agent": `sig1="${OPERATOR}"`,
+      "signature-input": `sig1=${params}`,
+      signature: `sig1=:${btoa(String.fromCharCode(...sig))}:`,
+    });
+    const nb = createNotabot({
+      hmacKey: "k",
+      agents: { allow: { [OPERATOR]: {} }, fetch: directory as typeof fetch },
+    });
+    expect((await nb.verifyRequest(infoFromRequest(request))).reason).toBe("verified-agent");
   });
 
   test("an operator's rate", async () => {

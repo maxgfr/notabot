@@ -124,6 +124,8 @@ export interface TokenClaims {
   targets?: [number, number][];
   /** Smart signals sealed by the server (visitor id, private mode, VM, VPN, Tor…). */
   smart?: SealedSignals;
+  /** Request flags /verify already counted in `bot`: the gate adds only the ones it sees anew. */
+  seen?: string[];
 }
 
 /** A compact signed token, `base64url(claims).hex(HMAC)`, for the site's backend to check. */

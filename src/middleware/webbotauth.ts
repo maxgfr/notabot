@@ -26,6 +26,8 @@ export type AgentResult =
 
 const DIRECTORY = "/.well-known/http-message-signatures-directory";
 const MAX_DIRECTORY_BYTES = 64 * 1024;
+/** The longest a signature may stay valid (created to expires). */
+const MAX_VALIDITY_SECONDS = 86_400;
 
 /** Whether the request carries a Web Bot Auth signature at all. */
 export function hasAgentSignature(headers: Headers): boolean {
@@ -98,17 +100,32 @@ function members(value: string): Map<string, string> {
   return out;
 }
 
+/** One covered component: its name, its `key` parameter (a dictionary member), as written. */
+interface Component {
+  name: string;
+  key: string | null;
+  /** The component identifier as serialised in Signature-Input, parameters included. */
+  raw: string;
+}
+
 interface SignatureInput {
   /** The serialised inner list and parameters, as signed (`("@authority" …);created=…`). */
   raw: string;
-  components: string[];
+  components: Component[];
   params: Record<string, string | number>;
 }
 
 function parseInput(raw: string): SignatureInput | null {
   const m = /^\(([^)]*)\)(.*)$/.exec(raw);
   if (!m) return null;
-  const components = [...(m[1] ?? "").matchAll(/"([^"]+)"/g)].map((x) => x[1] as string);
+  // Each item: a quoted name, then its own parameters (`"signature-agent";key="sig1"`).
+  const components = [
+    ...(m[1] ?? "").matchAll(/"([^"]+)"((?:;[a-z*][a-z0-9_.*-]*(?:=(?:"[^"]*"|[^\s;)]+))?)*)/g),
+  ].map((x) => ({
+    name: x[1] as string,
+    key: /;key="([^"]*)"/.exec(x[2] ?? "")?.[1] ?? null,
+    raw: `"${x[1]}"${x[2] ?? ""}`,
+  }));
   const params: Record<string, string | number> = {};
   for (const p of (m[2] ?? "").split(";").slice(1)) {
     const eq = p.indexOf("=");
@@ -231,21 +248,35 @@ export async function verifyAgent(info: RequestInfo, policy: AgentPolicy): Promi
   if (!allowed) return { ok: false, operator, reason: "not-allowed" };
   const now = Math.floor(Date.now() / 1000);
   const { created, expires, keyid, alg } = input.params;
-  if (typeof created !== "number" || typeof keyid !== "string")
+  // A signature must name this site and its agent, and expire soon: otherwise a captured one
+  // could be replayed forever, and on any site.
+  if (
+    typeof created !== "number" ||
+    typeof expires !== "number" ||
+    typeof keyid !== "string" ||
+    !input.components.some((c) => c.name === "@authority") ||
+    !input.components.some((c) => c.name === "signature-agent")
+  )
     return { ok: false, operator, reason: "malformed" };
   if (alg !== undefined && alg !== "ed25519") return { ok: false, operator, reason: "malformed" };
   if (
     created > now + (policy.clockSkewSeconds ?? 60) ||
-    (typeof expires === "number" && expires < now)
+    expires < now ||
+    expires - created > MAX_VALIDITY_SECONDS
   )
     return { ok: false, operator, reason: "expired" };
   const signature = /^:([A-Za-z0-9+/=]+):$/.exec(signatures.get(label) ?? "")?.[1];
   if (!signature) return { ok: false, operator, reason: "malformed" };
   const lines: string[] = [];
-  for (const name of input.components) {
-    const value = componentValue(name, info);
+  for (const component of input.components) {
+    const whole = componentValue(component.name, info);
+    // A dictionary member (`;key="sig1"`) signs that member's value, not the whole header.
+    const value =
+      component.key !== null && whole !== null
+        ? (members(whole).get(component.key) ?? null)
+        : whole;
     if (value === null) return { ok: false, operator, reason: "malformed" };
-    lines.push(`"${name}": ${value.trim()}`);
+    lines.push(`${component.raw}: ${value.trim()}`);
   }
   lines.push(`"@signature-params": ${input.raw}`);
   const keys = await directoryKeys(operator, policy.fetch ?? fetch);

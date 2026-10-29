@@ -360,7 +360,7 @@ export const RULES: Rule[] = [
       behavior.endSlowdown !== null &&
       behavior.endSlowdown > 0.85 &&
       behavior.turnRate < 0.02
-        ? `end speed ${behavior.endSlowdown} of peak, turn rate ${behavior.turnRate}`
+        ? `end speed ${behavior.endSlowdown} of average, turn rate ${behavior.turnRate}`
         : null,
   },
   {

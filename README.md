@@ -425,7 +425,21 @@ posted more than five times in ten minutes. Errors carry a `reason` the widget u
 sits into the token. The widget posts the gesture to `POST /slide` (`{ token, samples, track }`,
 or `{ token, keyTimes, position }` from the keyboard); the server judges it again and signs a new
 `human` token only if the gesture passes and the score was below the bot threshold. A page that
-declares "passed" by itself gets nothing signed. Three attempts per token.
+declares "passed" by itself gets nothing signed; only a token `/verify` signed in doubt, with its
+challenge, can be settled, once; the server checks the handle against the zone it signed, never
+the page's word. Three attempts per token.
+
+What it cannot do: the gesture itself is reported by the page. Pointer samples, key timestamps
+and `isTrusted` are what the browser said, and a script that writes a plausible gesture by hand
+passes the step. It still paid a proof of work for its token, and a score at the bot threshold or
+above is never overturned: the step is friction for scripts that drive a real page, not a proof.
+
+**The gate counts a request flag once.** The request flags `/verify` saw are sealed in the token
+(`seen`) and already in its score; the gate adds only the flags it sees for the first time, so a
+visitor on a VPN who just passed the slider is not refused for the same VPN again. The decision's
+`flags` are the ones it counted; a rate or a filled honeypot always counts. To find the token in a
+form or JSON body, `protect()` and the Hono adapter read the body once, up to `gateBodyBytes`
+(16 MiB); a larger upload sends the token in the `x-notabot-token` header.
 
 **`/siteverify`** compares the secret in constant time and accepts reCAPTCHA's `remoteip`, plus
 `useragent`, to check the binding from your backend.

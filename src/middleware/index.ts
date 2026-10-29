@@ -22,7 +22,7 @@ import {
   serverFeatures,
   toFeatures,
 } from "../llm/prompt";
-import { base64urlDecode, hmacHex, safeEqual, sha256Hex } from "../pow/crypto";
+import { base64urlDecode, hmacWith, safeEqual, sha256Hex } from "../pow/crypto";
 import { DEFAULT_MAX_NUMBER } from "../pow/index";
 import { probesFor, wrongProbes } from "../probes/index";
 import {
@@ -135,8 +135,9 @@ export interface NotabotServerOptions {
   visibleChallenges?: VisibleChallenge["kind"][];
   /**
    * Web Bot Auth: agents that sign their requests (RFC 9421) are let through when their operator
-   * is in `allow`, with its own rate; the hosting and HTTP-library rules do not count against
-   * them. A signed request from an operator not listed is refused. Off when unset.
+   * is in `allow`, with its own rate; the built-in request-shape rules (browser headers, HTTP
+   * library, hosting network…) do not count against them, rules you added do. A signed request
+   * from an operator not listed is refused. Off when unset.
    */
   agents?: AgentPolicy;
   /**
@@ -159,6 +160,12 @@ export interface NotabotServerOptions {
   getIp?: (request: Request) => string | null | undefined;
   /** Largest body the endpoints read, in bytes. Default 128 KiB. */
   maxBodyBytes?: number;
+  /**
+   * Largest body the gate reads to find the token and honeypot fields in a protected request
+   * (protect(), Hono), in bytes. Default 16 MiB: an upload larger than that should send the token
+   * in the `x-notabot-token` header. Express reads its own parsed body and needs no cap here.
+   */
+  gateBodyBytes?: number;
 }
 
 export type DecisionReason =
@@ -207,7 +214,7 @@ export interface SlideBody {
   keyTimes?: number[];
   keysTrusted?: boolean;
   position?: number;
-  /** Whether the handle ended in the zone; read only when the token carries no zone. */
+  /** Whether the page thinks the handle ended in the zone: ignored, the server checks the zone. */
   landed?: boolean;
   /** Or, for the targets challenge, each activation in order. */
   clicks?: TargetClick[];
@@ -238,6 +245,7 @@ export interface EndpointResult {
 
 const CORS_HEADERS = "content-type, x-notabot-token";
 const DEFAULT_MAX_BODY = 128 * 1024;
+const DEFAULT_GATE_BODY = 16 * 1024 * 1024;
 /** Times one exact signals blob may be posted to /verify in ten minutes. */
 const SIGNALS_REUSE = 5;
 /** Slider attempts per token, as many as the widget allows. */
@@ -249,7 +257,13 @@ export interface Notabot {
   readonly options: Required<
     Pick<
       NotabotServerOptions,
-      "accept" | "basePath" | "tokenHeader" | "tokenField" | "trustProxy" | "maxBodyBytes"
+      | "accept"
+      | "basePath"
+      | "tokenHeader"
+      | "tokenField"
+      | "trustProxy"
+      | "maxBodyBytes"
+      | "gateBodyBytes"
     >
   >;
   /** RequestInfo of a Fetch Request, its IP read as `trustProxy` / `getIp` allow. */
@@ -353,26 +367,77 @@ async function tokenFromRequest(
   request: Request,
   header: string,
   field: string,
+  max = DEFAULT_GATE_BODY,
 ): Promise<string | null> {
-  const fromHeader = request.headers.get(header);
-  if (fromHeader) return fromHeader;
-  return fieldFromRequest(request, field);
+  return (await gateInputs(request, { tokenHeader: header, tokenField: field, maxBytes: max }))
+    .token;
 }
 
 /** A string field of a JSON or form body, read from a clone (the handler still gets the body). */
-export async function fieldFromRequest(request: Request, field: string): Promise<string | null> {
+export async function fieldFromRequest(
+  request: Request,
+  field: string,
+  max = DEFAULT_GATE_BODY,
+): Promise<string | null> {
+  return (await bodyFields(request, max))[field] ?? null;
+}
+
+/**
+ * What the gate reads from a protected request, in one pass: the token (header first, then the
+ * form or JSON field) and the honeypot field the widget adds (`<field>-hp`).
+ */
+export async function gateInputs(
+  request: Request,
+  options: { tokenHeader?: string; tokenField?: string; maxBytes?: number } = {},
+): Promise<{ token: string | null; honeypot: string | null }> {
+  const field = options.tokenField ?? "notabot-token";
+  const header = request.headers.get(options.tokenHeader ?? "x-notabot-token");
+  const fields = await bodyFields(request, options.maxBytes ?? DEFAULT_GATE_BODY);
+  return { token: header || fields[field] || null, honeypot: fields[`${field}-hp`] ?? null };
+}
+
+/**
+ * The string fields of a JSON, urlencoded or multipart body, read once from a clone and no
+ * further than `max` bytes (empty past it): the gate never buffers a body it would not read.
+ */
+export async function bodyFields(
+  request: Request,
+  max = DEFAULT_MAX_BODY,
+): Promise<Record<string, string>> {
   const type = request.headers.get("content-type") ?? "";
+  if (!request.body || !/json|form/.test(type)) return {};
   try {
-    if (type.includes("application/json")) {
-      const body = (await request.clone().json()) as Record<string, unknown>;
-      return typeof body[field] === "string" ? (body[field] as string) : null;
-    }
-    if (type.includes("form")) {
-      const value = (await request.clone().formData()).get(field);
-      return typeof value === "string" ? value : null;
-    }
-  } catch {}
-  return null;
+    const text = await readCapped(request.clone(), max);
+    if (text === null) return {};
+    let entries: [string, unknown][];
+    if (type.includes("json")) {
+      const body: unknown = JSON.parse(text);
+      entries = isRecord(body) ? Object.entries(body) : [];
+    } else if (type.includes("multipart")) {
+      entries = [
+        ...(await new Request("http://body.invalid/", {
+          method: "POST",
+          headers: { "content-type": type },
+          body: text,
+        }).formData()),
+      ];
+    } else entries = [...new URLSearchParams(text)];
+    const out: Record<string, string> = {};
+    for (const [k, v] of entries) if (typeof v === "string") out[k] = v;
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** The host of an origin, or null: a sandboxed iframe or a file:// page sends "null". */
+function hostnameOf(origin: string | undefined): string | null {
+  if (!origin) return null;
+  try {
+    return new URL(origin).hostname || null;
+  } catch {
+    return null;
+  }
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -422,10 +487,14 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
   const tokenField = options.tokenField ?? "notabot-token";
   const trustProxy = options.trustProxy ?? false;
   const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY;
+  const gateBodyBytes = options.gateBodyBytes ?? DEFAULT_GATE_BODY;
   const bind = options.bindToken !== false;
   const singleUse = options.singleUse !== false;
   const ttl = options.tokenTtl ?? 300;
   const allowed = options.allowedOrigins ?? [];
+  // Signs everything this server derives from its key, the key imported once.
+  const hmac = hmacWith(key);
+  const ruleIds = new Set(rules.map((r) => r.id));
   const trust: IpTrust = { trustProxy, ...(options.getIp ? { getIp: options.getIp } : {}) };
 
   const originOk = (origin: string | null) =>
@@ -434,7 +503,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
   const postOriginOk = (origin: string | null) => (origin ? originOk(origin) : !allowed.length);
   const uaHashOf = async (ua: string) => (await sha256Hex(ua)).slice(0, 16);
   const uaHash = (info: RequestInfo) => uaHashOf(info.headers.get("user-agent") ?? "");
-  const ipHashOf = async (ip: string) => (await hmacHex(key, `ip:${ip}`)).slice(0, 16);
+  const ipHashOf = async (ip: string) => (await hmac(`ip:${ip}`)).slice(0, 16);
   const minute = () => Math.floor(Date.now() / 60_000);
   const lifetime = (c: TokenClaims) => Math.max(60, c.exp - c.iat);
 
@@ -497,7 +566,8 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     // A signed agent says it is an agent: the rules that catch a script passing for a browser
     // (missing browser headers, an HTTP library, a hosting network…) say nothing here. Its own
     // operator's rate, and any flag outside the request's shape, still count.
-    const shape = new Set(rules.map((r) => r.id));
+    // The built-in ones only: rules a site added itself (an ASN or JA4 deny list…) still count.
+    const shape = new Set(REQUEST_RULES.map((r) => r.id));
     const kept = flags.filter((f) => !shape.has(f.id));
     const bot = combineFlags(kept);
     const verdict = verdictOf(bot);
@@ -579,17 +649,23 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       if (singleUse && !(await store.claim(`token:gate:${claims.jti}`, lifetime(claims))))
         return refuse("replayed-token", analysis.flags, claims);
     }
-    const bot = combine(claims.bot, combineFlags(analysis.flags));
-    // The token's verdict holds unless the request itself pushes the score past a threshold.
-    const verdict = analysis.flags.length ? verdictOf(bot) : claims.verdict;
+    // The token's score already counts the request flags /verify saw: only new ones add to it.
+    const seen = new Set(claims.seen ?? []);
+    const fresh = analysis.flags.filter((f) => !seen.has(f.id));
+    const bot = combine(claims.bot, combineFlags(fresh));
+    // The token's verdict holds unless something new pushes the score past a threshold.
+    const verdict = fresh.length ? verdictOf(bot) : claims.verdict;
     const ok = accept.includes(verdict);
-    return { ok, reason: ok ? "accepted" : "verdict", verdict, bot, flags: analysis.flags, claims };
+    // The flags this decision counted: the token's score already holds the ones /verify saw.
+    return { ok, reason: ok ? "accepted" : "verdict", verdict, bot, flags: fresh, claims };
   }
 
   // Same features, same answer: the model is asked once per distinct feature vector.
   const modelCache = new Map<string, number>();
   /** The first request form (see chatRequests) the model's server accepted. */
   let requestForm = 0;
+  /** The salt of visitor ids: this server's own, computed once. */
+  let visitorSalt: Promise<string> | undefined;
 
   /**
    * The model's probability of a bot, or null: no model, an answer that cannot be read, or no
@@ -624,6 +700,8 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
           if (res.ok) requestForm = i;
           break;
         }
+        // Read the refusal to the end, so its connection goes back to the pool for the retry.
+        await res.arrayBuffer().catch(() => {});
       }
       if (!res?.ok) return null;
       const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
@@ -647,6 +725,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       zone?: number;
       targets?: [number, number][];
       smart?: SealedSignals;
+      seen?: string[];
     },
   ): Promise<{ token: string; exp: number }> {
     const origin = info.headers.get("origin");
@@ -742,7 +821,8 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     tor: boolean,
   ): Promise<SealedSignals> {
     const browser = smartSignals(signals);
-    const id = await identify(signals, await hmacHex(key, "visitor"));
+    visitorSalt ??= hmac("visitor");
+    const id = await identify(signals, await visitorSalt);
     const vpn: string[] = [];
     const tz = flags.find((f) => f.id === "server-timezone");
     if (tz) vpn.push(`time zone ${tz.detail}`);
@@ -771,10 +851,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
 
   /** Keyed hash of the client a puzzle is bound to: its IP (when known) and User-Agent. */
   const clientBind = async (info: RequestInfo) =>
-    (await hmacHex(key, `pow:${info.ip ?? ""}|${info.headers.get("user-agent") ?? ""}`)).slice(
-      0,
-      16,
-    );
+    (await hmac(`pow:${info.ip ?? ""}|${info.headers.get("user-agent") ?? ""}`)).slice(0, 16);
 
   /**
    * A puzzle priced by risk: the request's own flags, how close the IP is to its rate, and,
@@ -809,7 +886,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
   }
 
   /** The probes of a puzzle: drawn from its salt with the key, so the page cannot choose them. */
-  const probesOf = async (salt: string) => probesFor(await hmacHex(key, `probes:${salt}`));
+  const probesOf = async (salt: string) => probesFor(await hmac(`probes:${salt}`));
 
   /** What the page's answers to its puzzle's probes say. */
   async function probeFlags(salt: string, answers: unknown): Promise<Flag[]> {
@@ -900,6 +977,8 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       verdict,
       bot,
       smart,
+      // Request-shape flags only: a rate or a honeypot is about this moment, not the browser.
+      seen: analysis.flags.filter((f) => ruleIds.has(f.id)).map((f) => f.id),
       ...(visible?.kind === "slide" ? { zone: visible.zone } : {}),
       ...(visible?.kind === "targets" ? { targets: visible.targets } : {}),
     });
@@ -946,11 +1025,16 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     // The slider settles doubt; it never overturns a decisive "bot" from the signals.
     if (claims.bot >= THRESHOLDS.bot)
       return { status: 200, body: { passed: false, verdict: "bot", bot: claims.bot } };
+    // Only a token /verify signed in doubt, with its challenge: a human token (or one /slide
+    // issued) has nothing to settle, and re-sliding it would mint tokens without a proof of work.
+    if (claims.verdict !== "unsure" || (claims.zone === undefined && !claims.targets))
+      return fail(403, "refused", "no challenge to settle");
     const attempt = await countIn(store, `slide:${claims.jti}`, lifetime(claims), SLIDE_ATTEMPTS);
     if (attempt > SLIDE_ATTEMPTS) return fail(429, "rate-limited", "too many attempts");
     const zone = claims.zone;
+    // Where the handle ended, against the zone the server signed: never the page's own word.
     const inZone = (percent: number) =>
-      zone === undefined ? body.landed === true : percent >= zone && percent <= zone + ZONE_WIDTH;
+      zone !== undefined && percent >= zone && percent <= zone + ZONE_WIDTH;
     let passed: boolean;
     if (claims.targets) {
       // A token signed for targets is passed by its targets only, not by a slide.
@@ -978,6 +1062,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       verdict: "human",
       bot,
       ...(claims.smart ? { smart: claims.smart } : {}),
+      ...(claims.seen ? { seen: claims.seen } : {}),
     });
     return { status: 200, body: { passed: true, token, verdict: "human", bot, exp } };
   }
@@ -1029,7 +1114,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
         bot: c.bot,
         score: Math.round((1 - c.bot) * 100) / 100,
         challenge_ts: new Date(c.iat * 1000).toISOString(),
-        hostname: c.origin ? new URL(c.origin).hostname : null,
+        hostname: hostnameOf(c.origin),
         ...(c.smart ? { smart: c.smart } : {}),
       },
     };
@@ -1107,18 +1192,21 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       const extra = opts.info?.(request, ...rest) ?? {};
       const served = await handle(request, extra);
       if (served) return served;
-      const decision = await verifyRequest(
-        infoFromRequest(request, extra, trust),
-        await tokenFromRequest(request, tokenHeader, tokenField),
-        { honeypot: await fieldFromRequest(request, `${tokenField}-hp`) },
-      );
+      const inputs = await gateInputs(request, {
+        tokenHeader,
+        tokenField,
+        maxBytes: gateBodyBytes,
+      });
+      const decision = await verifyRequest(infoFromRequest(request, extra, trust), inputs.token, {
+        honeypot: inputs.honeypot,
+      });
       if (!decision.ok) return refusal(decision);
       return handler(request, ...rest);
     };
   }
 
   return {
-    options: { accept, basePath, tokenHeader, tokenField, trustProxy, maxBodyBytes },
+    options: { accept, basePath, tokenHeader, tokenField, trustProxy, maxBodyBytes, gateBodyBytes },
     requestInfo: (request, extra = {}) => infoFromRequest(request, extra, trust),
     analyzeRequest,
     verifyRequest,
