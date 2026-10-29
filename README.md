@@ -55,21 +55,24 @@ away by it. The demo shows the exact prompt before anything is sent.
 (`--notabot-accent`, `--notabot-bg`, `--notabot-fg`, `--notabot-border`, `--notabot-radius`,
 `--notabot-font`…) and passing a strict CSP (constructed stylesheets, no inline styles).
 
-| Attribute (or `data-*` on the script tag) |                                                                                 |
-| ----------------------------------------- | ------------------------------------------------------------------------------- |
-| `mode`                                    | `click` (default) waits for the checkbox; `auto` runs on load                   |
-| `challenge-url`                           | a server that signs puzzles (`GET` → challenge)                                 |
-| `verify-url`                              | a server that re-scores and signs a token (`POST` signals, behaviour, solution) |
-| `endpoint`, `model`                       | an OpenAI-compatible proxy for the AI opinion; the key stays there              |
-| `name`                                    | hidden field carrying the token, default `notabot-token`                        |
-| `form`                                    | form selector, when the widget sits outside it                                  |
-| `lang`                                    | `en` or `fr` (default: the page's)                                              |
-| `theme`                                   | `auto`, `light`, `dark`                                                         |
-| `rules-weight`                            | weight of the rules against the model, default `0.7`                            |
+| Attribute (or `data-*` on the script tag) |                                                                                  |
+| ----------------------------------------- | -------------------------------------------------------------------------------- |
+| `mode`                                    | `click` (default) waits for the checkbox; `auto` runs on load                    |
+| `challenge-url`                           | a server that signs puzzles (`GET` → challenge)                                  |
+| `verify-url`                              | a server that re-scores and signs a token (`POST` signals, behaviour, solution)  |
+| `slide-url`                               | where the slider is judged in signed mode; default: `slide` next to `verify-url` |
+| `endpoint`, `model`                       | an OpenAI-compatible proxy for the AI opinion; the key stays there               |
+| `name`                                    | hidden field carrying the token, default `notabot-token`                         |
+| `form`                                    | form selector, when the widget sits outside it                                   |
+| `lang`                                    | `en` or `fr` (default: the page's)                                               |
+| `theme`                                   | `auto`, `light`, `dark`                                                          |
+| `rules-weight`                            | weight of the rules against the model, default `0.7`                             |
 
 On the script tag, `data-form="#id"` adds a widget to that form and holds its submission until
 the check passes (`data-guard="false"` to opt out). Events: `notabot:state`, `notabot:step`,
-`notabot:verdict` (`{ verdict, bot, token, signed, challenged, result }`), `notabot:error`.
+`notabot:verdict` (`{ verdict, bot, token, signed, challenged, result }`), `notabot:error`
+(`{ error, code }`: `expired`, `replayed`, `refused`, `rate-limited`, `malformed` or `network`).
+With `verify-url`, the page asks no model of its own: the server does.
 A `data-api-key` is refused: a key in a page is public.
 
 ## npm package
@@ -126,7 +129,7 @@ const notabot = createNotabot({
 
 const app = express();
 app.use(express.urlencoded({ extended: false }), express.json());
-// Serves /notabot/challenge, /notabot/verify, /notabot/siteverify, then gates what follows.
+// Serves /notabot/challenge, /verify, /slide and /siteverify, then gates what follows.
 app.post("/signup", notabotExpress(notabot), (req, res) =>
   res.send(`welcome (${req.notabot.verdict})`),
 );
@@ -150,18 +153,48 @@ What a request is checked for (`REQUEST_RULES`, extensible with your own `rules`
 - **Client hints:** missing sec-ch-ua on Chromium; sec-ch-ua-platform or sec-ch-ua-mobile contradicting the User-Agent; a HeadlessChrome brand.
 - **Fetch metadata:** missing Sec-Fetch-* headers on a modern browser.
 - **Protocol and network:** a Chromium speaking HTTP/1.x; an IP on a hosting network (from `request.cf` or the `network` you pass).
-- **Rate:** an optional burst limit per IP (`ratePerMinute`).
+- **Rate:** an optional burst limit per IP (`ratePerMinute`), which also caps `/challenge`.
 
 The token's checks:
 
 - **Signature and expiry.**
-- **Allowed origin.**
-- **Binding:** it must come from the User-Agent and IP it was issued to.
-- **Single use:** a replay is refused (`memoryStore()` by default, `kvStore()` for KV, Redis…).
+- **Allowed origin.** With `allowedOrigins`, a POST to `/verify` or `/slide` without an
+  `Origin` header is refused, and a refused origin gets no `access-control-allow-origin`.
+- **Binding:** it must come from the User-Agent and IP it was issued to. A token bound to an IP
+  is refused when the request's IP is unknown.
+- **Single use**, per use: the gate and `/siteverify` each accept a token once (`singleUse: false`
+  lifts it).
 
-The page's front-only `unsigned.` tokens are refused unless `allowUnsigned` is set. A refused
-request gets a 403 with the reason (`missing-token`, `token-mismatch`, `replayed-token`,
-`verdict`…) and the flags.
+The page's front-only `unsigned.` tokens are refused unless `allowUnsigned` is set, and expire
+like the others. A refused request gets a 403 with the reason (`missing-token`,
+`token-mismatch`, `replayed-token`, `verdict`…) and the flags.
+
+**The client IP.** By default the middleware believes only the platform: Cloudflare's
+`request.cf` (then `cf-connecting-ip`), the Node adapter's `req.ip` (Express derives it from its
+own `trust proxy` setting), or an `ip` you pass. A forwarding header that no proxy of yours
+overwrites is whatever the client wrote, so it is read only when you say so: `trustProxy:
+"cloudflare"` (behind Cloudflare), `trustProxy: "x-forwarded-for"` (the last hop your proxy
+appended), or your own `getIp(request)`.
+
+**The store.** `memoryStore()` (the default) holds one process, at most 50 000 keys. Across
+instances, use `redisStore(redis)`: `SET NX EX` and `INCR` make claims and counts atomic.
+`kvStore(kv)` works over Cloudflare KV, best effort only: KV is eventually consistent, so two
+requests in the same second can both pass. A custom store implements `claim(key, ttl)` and,
+for O(1) rate counting, `incr(key, ttl)`.
+
+**The endpoints** check the shape of what they are sent (400 for malformed signals), cap the
+body (`maxBodyBytes`, 128 KiB), answer JSON even on an internal error, and refuse a signals blob
+posted more than five times in ten minutes. Errors carry a `reason` the widget understands:
+`expired`, `replayed`, `refused`, `rate-limited`, `malformed`.
+
+**The slider in signed mode.** When `/verify` says `unsure`, it signs where the slider's zone
+sits into the token. The widget posts the gesture to `POST /slide` (`{ token, samples, track }`,
+or `{ token, keyTimes, position }` from the keyboard); the server judges it again and signs a new
+`human` token only if the gesture passes and the score was below the bot threshold. A page that
+declares "passed" by itself gets nothing signed. Three attempts per token.
+
+**`/siteverify`** compares the secret in constant time and accepts reCAPTCHA's `remoteip`, plus
+`useragent`, to check the binding from your backend.
 
 ## Enforce with the Worker
 
@@ -173,9 +206,13 @@ server of their own, the same `createNotabot()` in a dozen lines:
 - `POST /verify` checks the proof of work (refusing replays through KV), re-scores the signals
   with what only a server sees (the real `User-Agent` and `Accept-Language` headers, the IP's
   network and time zone, HTTP version), asks your model with your key, and signs a short-lived
-  token bound to the origin;
+  token bound to the origin, with its expiry (`exp`);
+- `POST /slide` judges the slider's gesture again and re-signs the token as human when it passes;
 - `POST /siteverify` is for your backend, reCAPTCHA-style:
   `{ success, verdict, bot, score, challenge_ts, hostname }`, each token valid once.
+
+The widget checks again 30 seconds before its token expires, and after each form submission
+that spent it.
 
 TCP, TLS (JA4) and HTTP/2 fingerprints never reach JavaScript; a Worker behind Cloudflare is
 where they can be added.

@@ -1,6 +1,6 @@
 // Framework adapters. No framework is a dependency: they take the minimal shapes they read.
-import type { Decision, Notabot } from "./index";
-import { infoFromRequest, refusal, tokenFromRequest } from "./index";
+import type { Decision, Notabot, TrustProxy } from "./index";
+import { refusal, tokenFromRequest } from "./index";
 import type { RequestInfo } from "./request";
 
 /** The parts of a Node / Express request the adapter reads. */
@@ -39,41 +39,94 @@ function nodeUrl(req: NodeRequestLike, headers: Headers): string {
   return `${proto}://${headers.get("host") ?? "localhost"}${req.originalUrl ?? req.url ?? "/"}`;
 }
 
+/**
+ * The client IP of a Node request: the header `trust` names when it is set, else `req.ip`
+ * (Express computes it from its own `trust proxy` setting), else the socket's peer.
+ */
+export function nodeIp(req: NodeRequestLike, trust: TrustProxy = false): string | null {
+  const header = (name: string) => {
+    const v = req.headers[name];
+    return Array.isArray(v) ? v.join(", ") : (v ?? "");
+  };
+  if (trust === "cloudflare") return header("cf-connecting-ip") || null;
+  if (trust === "x-forwarded-for") {
+    const hops = header("x-forwarded-for")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return hops[hops.length - 1] ?? null;
+  }
+  return req.ip ?? req.socket?.remoteAddress ?? null;
+}
+
 /** RequestInfo of a Node request (Express, Connect, Fastify's raw request, node:http). */
-export function infoFromNode(req: NodeRequestLike): RequestInfo {
+export function infoFromNode(req: NodeRequestLike, trust: TrustProxy = false): RequestInfo {
   const headers = nodeHeaders(req.headers);
   return {
     method: req.method ?? "GET",
     url: nodeUrl(req, headers),
     headers,
-    ip: req.ip ?? req.socket?.remoteAddress ?? null,
+    ip: nodeIp(req, trust),
     httpVersion: req.httpVersion ?? null,
     network: null,
     ja4: headers.get("x-ja4"),
   };
 }
 
-async function readBody(req: NodeRequestLike): Promise<string | undefined> {
+/** A body as text with its content type, or "too-large" past the cap. */
+type NodeBody = { text: string; type: string | null } | "too-large" | undefined;
+
+/**
+ * The body of a Node request. A body a parser already read is encoded again the way its
+ * content type says (a form stays a form), since the stream is gone.
+ */
+async function readBody(req: NodeRequestLike, max: number): Promise<NodeBody> {
+  const raw = req.headers["content-type"];
+  const declared = typeof raw === "string" ? raw : null;
+  const fits = (text: string, type = declared): NodeBody =>
+    new TextEncoder().encode(text).byteLength > max ? "too-large" : { text, type };
   if (req.body !== undefined) {
-    if (typeof req.body === "string") return req.body;
-    if (req.body instanceof Uint8Array) return new TextDecoder().decode(req.body);
-    return JSON.stringify(req.body);
+    if (typeof req.body === "string") return fits(req.body);
+    if (req.body instanceof Uint8Array)
+      return req.body.byteLength > max
+        ? "too-large"
+        : { text: new TextDecoder().decode(req.body), type: declared };
+    if (declared?.includes("application/x-www-form-urlencoded") && typeof req.body === "object") {
+      const form = new URLSearchParams();
+      for (const [k, v] of Object.entries(req.body as Record<string, unknown>))
+        if (typeof v === "string") form.set(k, v);
+      return fits(form.toString());
+    }
+    return fits(JSON.stringify(req.body), "application/json");
   }
+  if (Number(req.headers["content-length"] ?? 0) > max) return "too-large";
   if (!req.on) return undefined;
   const on = req.on.bind(req);
   return new Promise((resolve) => {
     const chunks: Uint8Array[] = [];
-    on("data", (c) =>
-      chunks.push(typeof c === "string" ? new TextEncoder().encode(c) : (c as Uint8Array)),
-    );
+    let size = 0;
+    let over = false;
+    on("data", (c) => {
+      if (over) return;
+      const chunk = typeof c === "string" ? new TextEncoder().encode(c) : (c as Uint8Array);
+      size += chunk.length;
+      if (size > max) {
+        over = true;
+        chunks.length = 0;
+        resolve("too-large");
+        return;
+      }
+      chunks.push(chunk);
+    });
     on("end", () => {
-      const all = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+      if (over) return;
+      const all = new Uint8Array(size);
       let at = 0;
       for (const c of chunks) {
         all.set(c, at);
         at += c.length;
       }
-      resolve(new TextDecoder().decode(all));
+      resolve({ text: new TextDecoder().decode(all), type: declared });
     });
     on("error", () => resolve(undefined));
   });
@@ -97,29 +150,40 @@ function tokenFromNode(req: NodeRequestLike, header: string, field: string): str
 }
 
 export interface ExpressOptions {
-  /** Only serve the endpoints (challenge, verify, siteverify), never gate. */
+  /** Only serve the endpoints (challenge, verify, slide, siteverify), never gate. */
   routesOnly?: boolean;
   /** What a refused request gets; default 403 JSON with the reason and flags. */
   onRefuse?: (decision: Decision, req: NodeRequestLike, res: NodeResponseLike) => void;
 }
 
 /**
- * Express / Connect middleware: serves `{basePath}/challenge|verify|siteverify`, then gates the
+ * Express / Connect middleware: serves `{basePath}/challenge|verify|slide|siteverify`, then gates the
  * request (token + request analysis). The decision is on `req.notabot`. Put a body parser first
  * to read the token from form fields; the `x-notabot-token` header always works.
  */
 export function notabotExpress(nb: Notabot, options: ExpressOptions = {}) {
   return async (req: NodeRequestLike, res: NodeResponseLike, next: (error?: unknown) => void) => {
     try {
-      const info = infoFromNode(req);
+      const info = infoFromNode(req, nb.options.trustProxy);
       const path = new URL(info.url).pathname;
       if (path === nb.options.basePath || path.startsWith(`${nb.options.basePath}/`)) {
         const method = info.method.toUpperCase();
-        const body = method === "GET" || method === "HEAD" ? undefined : await readBody(req);
+        const body =
+          method === "GET" || method === "HEAD"
+            ? undefined
+            : await readBody(req, nb.options.maxBodyBytes);
+        if (body === "too-large")
+          return void (await send(
+            res,
+            Response.json({ error: "body too large", reason: "malformed" }, { status: 413 }),
+          ));
+        const headers = new Headers(info.headers);
+        headers.delete("content-length");
+        if (body?.type) headers.set("content-type", body.type);
         const request = new Request(info.url, {
           method,
-          headers: info.headers,
-          ...(body !== undefined ? { body } : {}),
+          headers,
+          ...(body !== undefined ? { body: body.text } : {}),
         });
         const response = await nb.handle(request, {
           ip: info.ip ?? null,
@@ -165,7 +229,7 @@ export function notabotHono(
       return undefined;
     }
     const decision = await nb.verifyRequest(
-      infoFromRequest(c.req.raw, extra),
+      nb.requestInfo(c.req.raw, extra),
       await tokenFromRequest(c.req.raw, nb.options.tokenHeader, nb.options.tokenField),
     );
     c.set("notabot", decision);

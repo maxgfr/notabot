@@ -36,11 +36,16 @@ export function mountNotabot(options: MountOptions = {}): NotabotCheck {
 
 /**
  * Holds back a form's submission until the widget says human: a submit before that runs the
- * check (or shows the slider) instead. The server must still check the token.
+ * check (or shows the slider) instead. A submit that goes through spends the token, so the
+ * widget checks again right after, for the next one. The server must still check the token.
  */
 export function guardForm(form: HTMLFormElement, widget: NotabotCheck): () => void {
   const onSubmit = (e: SubmitEvent) => {
-    if (widget.state === "human") return;
+    if (widget.state === "human") {
+      // After every submit listener has read the form: a fetch() handler posts this token.
+      setTimeout(() => widget.refresh(), 0);
+      return;
+    }
     e.preventDefault();
     if (widget.state === "idle" || widget.state === "error") void widget.run();
   };
