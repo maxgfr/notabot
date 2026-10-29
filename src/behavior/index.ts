@@ -391,11 +391,19 @@ export interface TargetClick {
   trusted: boolean;
   /** Activated from the keyboard (Enter or Space on the focused target). */
   key: boolean;
+  /** A finger's tap: no pointer moves between taps, the finger lifts. */
+  touch?: boolean;
+  /** Pointer moves since the previous activation (or since the targets appeared). */
+  path?: number;
 }
+
+/** Pointer moves a hand makes between two targets, at the least; a jump makes one. */
+const MIN_TARGET_PATH = 3;
 
 /**
  * Judges the targets challenge: every target activated once, in order, by trusted events, a
- * pointer landing on each target (within `radius` percent), and a person's uneven pace.
+ * pointer that travelled to each target and landed on it (within `radius` percent), and a
+ * person's uneven pace.
  */
 export function judgeTargets(
   clicks: TargetClick[],
@@ -407,6 +415,8 @@ export function judgeTargets(
     if (!c.trusted || c.index !== i) return false;
     const [tx, ty] = targets[i] as readonly [number, number];
     if (!c.key && Math.hypot(c.x - tx, c.y - ty) > radius) return false;
+    // A mouse travels to each target; a script (or an agent) jumps straight onto it.
+    if (!c.key && !c.touch && (c.path ?? 0) < MIN_TARGET_PATH) return false;
   }
   const gaps: number[] = [];
   for (let i = 1; i < clicks.length; i++)

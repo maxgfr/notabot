@@ -83,7 +83,15 @@ export function infoFromNode(req: NodeRequestLike, trust: TrustProxy = false): R
     url: nodeUrl(req, headers),
     headers,
     ip: nodeIp(req, trust),
-    httpVersion: req.httpVersion ?? null,
+    // The client's protocol only: behind a proxy, or on plain HTTP where no browser speaks
+    // HTTP/2, `req.httpVersion` is the last hop's, and every real Chromium would look like a
+    // script. Node knows the client's when it terminates TLS itself, or serves HTTP/2.
+    httpVersion:
+      settings || req.stream?.session
+        ? "2.0"
+        : req.socket?.encrypted
+          ? (req.httpVersion ?? null)
+          : null,
     network: null,
     ja4: trust ? headers.get("x-ja4") : null,
     headerOrder: order?.length ? order : null,

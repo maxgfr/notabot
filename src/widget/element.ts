@@ -503,6 +503,11 @@ export class NotabotCheck extends Base {
       "aria-labelledby": "notabot-targets-hint",
     });
     const clicks: TargetClick[] = [];
+    // How far the pointer travelled since the last activation: a hand moves, a jump does not.
+    let path = 0;
+    box.addEventListener("pointermove", () => {
+      path++;
+    });
     const order = targets.map((_, i) => i).sort(() => Math.random() - 0.5);
     for (const i of order) {
       const [x, y] = targets[i] as [number, number];
@@ -530,7 +535,10 @@ export class NotabotCheck extends Base {
           t: e.timeStamp,
           trusted: e.isTrusted,
           key,
+          touch: (e as PointerEvent).pointerType === "touch",
+          path,
         });
+        path = 0;
         button.setAttribute("aria-pressed", "true");
         if (clicks.length === targets.length)
           this.#judge(judgeTargets(clicks, targets), { clicks }, box);

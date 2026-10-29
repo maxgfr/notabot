@@ -446,6 +446,7 @@ describe("/slide", () => {
       t,
       trusted: true,
       key: false,
+      path: 14,
       ...over,
     });
     const slideInstead = await post(nb, "slide", {
@@ -465,6 +466,28 @@ describe("/slide", () => {
       clicks: [click(0, 0), click(1, 640), click(2, 1150)],
     });
     expect(ok.body).toMatchObject({ passed: true, verdict: "human" });
+  });
+
+  test("targets: clicks that jump onto each target fail; a finger's taps pass", async () => {
+    const nb = createNotabot({ hmacKey: "k", maxnumber: 1500, visibleChallenges: ["targets"] });
+    const taps = async (over: Record<string, unknown>) => {
+      const { body } = await verified(nb, doubtful());
+      const targets = (body.challenge as { targets: [number, number][] }).targets;
+      const clicks = targets.map(([x, y], index) => ({
+        index,
+        x,
+        y,
+        t: [0, 2400, 5100][index] as number,
+        trusted: true,
+        key: false,
+        ...over,
+      }));
+      return (await post(nb, "slide", { token: body.token, clicks })).body.passed;
+    };
+    // An agent's clicks: on target, in order, slowly, but jumping straight from one to the next.
+    expect(await taps({ path: 1 })).toBe(false);
+    expect(await taps({})).toBe(false);
+    expect(await taps({ path: 1, touch: true })).toBe(true);
   });
 
   test("targets from the keyboard: the order counts, not the position", async () => {
