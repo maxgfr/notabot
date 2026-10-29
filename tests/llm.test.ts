@@ -126,10 +126,51 @@ describe("the server's model", () => {
     expect(answer.model).toBe(true);
     expect(requests[0]).toMatchObject({
       temperature: 0,
-      max_tokens: 300,
-      response_format: { type: "json_object" },
+      max_tokens: 1200,
+      response_format: { type: "json_schema", json_schema: { name: "verdict", strict: true } },
     });
     expect(answer.verdict).not.toBe("human");
+  });
+});
+
+describe("the server's model on APIs that refuse parts of the request", () => {
+  test("no temperature, then no response_format: it still answers", async () => {
+    // What Anthropic's OpenAI-compatible API does with recent Claude models.
+    requests.length = 0;
+    respond = (body) =>
+      body.temperature !== undefined
+        ? Response.json({ error: { message: "temperature is deprecated" } }, { status: 400 })
+        : (body.response_format as { type?: string } | undefined)?.type === "json_schema"
+          ? completion('{"reasons":["software GPU"],"verdict":"bot","confidence":0.9}')
+          : Response.json({ error: { message: "unexpected" } }, { status: 500 });
+    const nb = createNotabot({
+      hmacKey: "k",
+      maxnumber: 300,
+      llm: { endpoint: `http://localhost:${server.port}/v1`, model: "claude" },
+    });
+    const headers = chromeHeaders(realChrome().env.userAgent);
+    const c = (await (
+      await nb.handle(new Request("https://site.dev/notabot/challenge", { headers }), {
+        ip: "203.0.113.10",
+      })
+    )?.json()) as Challenge;
+    const doubtful = realChrome();
+    doubtful.automation.softwareRenderer = true;
+    const res = await nb.handle(
+      new Request("https://site.dev/notabot/verify", {
+        method: "POST",
+        headers: { ...headers, "content-type": "application/json" },
+        body: JSON.stringify({
+          signals: doubtful,
+          solution: encodeSolution({ ...c, number: (await search(c)) as number, took: 1 }),
+          probes: (c.probes ?? []).map(expectedAnswer),
+        }),
+      }),
+      { ip: "203.0.113.10" },
+    );
+    expect(((await (res as Response).json()) as { model: boolean }).model).toBe(true);
+    expect(requests).toHaveLength(2);
+    expect(requests[1]?.temperature).toBeUndefined();
   });
 });
 

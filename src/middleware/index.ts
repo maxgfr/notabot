@@ -15,9 +15,9 @@ import {
 import {
   botProbabilityOf,
   buildPrompt,
+  chatRequests,
   type Features,
   parseVerdict,
-  SYSTEM_PROMPT,
   serverFeatures,
   toFeatures,
 } from "../llm/prompt";
@@ -579,6 +579,8 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
 
   // Same features, same answer: the model is asked once per distinct feature vector.
   const modelCache = new Map<string, number>();
+  /** The first request form (see chatRequests) the model's server accepted. */
+  let requestForm = 0;
 
   /**
    * The model's probability of a bot, or null: no model, an answer that cannot be read, or no
@@ -591,30 +593,30 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     const cacheKey = await sha256Hex(prompt);
     const cached = modelCache.get(cacheKey);
     if (cached !== undefined) return cached;
-    const call = (jsonMode: boolean) =>
+    // One deadline for every attempt: a server that refuses the first form still answers in time.
+    const signal = AbortSignal.timeout(llm.timeoutMs ?? 4000);
+    const call = (body: Record<string, unknown>) =>
       fetch(`${llm.endpoint.replace(/\/$/, "")}/chat/completions`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
           ...(llm.apiKey ? { authorization: `Bearer ${llm.apiKey}` } : {}),
         },
-        body: JSON.stringify({
-          model: llm.model ?? "default",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: prompt },
-          ],
-          temperature: 0,
-          max_tokens: 300,
-          ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-        }),
-        signal: AbortSignal.timeout(llm.timeoutMs ?? 4000),
+        body: JSON.stringify(body),
+        signal,
       });
     try {
-      let res = await call(true);
-      // Some OpenAI-compatible servers refuse response_format: ask again without it.
-      if (res.status === 400) res = await call(false);
-      if (!res.ok) return null;
+      let res: Response | null = null;
+      const forms = chatRequests(llm.model ?? "default", prompt);
+      // Start from the form this server accepted last time: no refused attempt on every call.
+      for (let i = requestForm; i < forms.length; i++) {
+        res = await call(forms[i] as Record<string, unknown>);
+        if (res.status !== 400) {
+          if (res.ok) requestForm = i;
+          break;
+        }
+      }
+      if (!res?.ok) return null;
       const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
       const verdict = parseVerdict(body.choices?.[0]?.message?.content ?? "");
       if (!verdict) return null;

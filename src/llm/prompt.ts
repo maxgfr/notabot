@@ -270,6 +270,49 @@ export const VERDICT_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+/**
+ * The same schema as OpenAI-compatible APIs accept in strict `json_schema` mode: no `maxItems`,
+ * `minimum` or `maximum` (Anthropic's refuses them); {@link toVerdict} bounds the values instead.
+ */
+export const VERDICT_SCHEMA_STRICT = {
+  type: "object",
+  properties: {
+    reasons: { type: "array", items: { type: "string" } },
+    verdict: { type: "string", enum: ["human", "bot", "unsure"] },
+    confidence: { type: "number" },
+  },
+  required: ["reasons", "verdict", "confidence"],
+  additionalProperties: false,
+} as const;
+
+/**
+ * The bodies to POST to an OpenAI-compatible `/chat/completions`, in the order to try them, each
+ * after the previous one got a 400: the verdict's schema at temperature 0, the schema without a
+ * temperature (recent Claude models refuse one), then the bare request (servers that refuse
+ * `response_format`).
+ */
+export function chatRequests(
+  model: string,
+  prompt: string,
+  maxTokens = 1200,
+): Record<string, unknown>[] {
+  const base = {
+    model,
+    max_tokens: maxTokens,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: prompt },
+    ],
+  };
+  const schema = {
+    response_format: {
+      type: "json_schema",
+      json_schema: { name: "verdict", strict: true, schema: VERDICT_SCHEMA_STRICT },
+    },
+  };
+  return [{ ...base, ...schema, temperature: 0 }, { ...base, ...schema }, base];
+}
+
 /** `id — explanation (weight)` for every rule: fixed text the model can trust, unlike the input. */
 export function glossary(): string {
   return [...RULES, ...REQUEST_RULES, ...CROSS_CHECK_RULES]
@@ -325,7 +368,7 @@ Answer: {"reasons":["canvas noise alone points to a privacy tool","systems agree
 Features: ${JSON.stringify(EXAMPLE_BOT)}
 Answer: {"reasons":["toString patched","the iframe disagrees with the page","the user agent and the GPU name different systems"],"verdict":"bot","confidence":0.85}
 
-Answer with JSON only, no prose, reasons first: {"reasons":[up to 4 short strings naming the features that decided],"verdict":"human"|"bot"|"unsure","confidence":number between 0 and 1}`;
+Answer with JSON only, no prose, reasons first: {"reasons":[up to 4 strings of at most 12 words, naming the features that decided],"verdict":"human"|"bot"|"unsure","confidence":number between 0 and 1}`;
 
 export function buildPrompt(features: Features): string {
   return `Features:\n${JSON.stringify(sanitizeFeatures(features), null, 1)}`;

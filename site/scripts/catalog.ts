@@ -530,9 +530,12 @@ export const RULES_FR: Record<string, string> = {
   "untrusted-events":
     "Des évènements créés par un script (isTrusted = false) plutôt que par une personne.",
   "input-without-keys": "Des champs modifiés sans touche ni collage : un script les a remplis.",
-  "robotic-pointer": "Le pointeur avance en lignes parfaitement droites à vitesse constante.",
+  "robotic-pointer":
+    "Le pointeur avance en lignes parfaitement droites, à pas égaux ou à vitesse constante : le trajet d'un script, quoi que fasse son horloge.",
   "no-coalesced-events":
     "Les évènements de pointeur ne portent aucun échantillon brut, comme souvent les synthétiques.",
+  "robotic-typing":
+    "Touches enfoncées et relâchées au métronome : un script qui tape avec un délai fixe. Le rythme d'une personne varie.",
   "robotic-scroll":
     "Défilement au métronome : le même écart à chaque fois, comme la boucle d'un script.",
   "honeypot-filled":

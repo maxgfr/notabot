@@ -181,7 +181,10 @@ What the model is shown, and how its answer is read:
   behaviour block of zeros.
 - **Structured output** where the provider supports it (the verdict's JSON Schema), else text read
   by `parseVerdict`, which drops `<think>` blocks and keeps the last valid object. The server
-  asks in JSON mode, at temperature 0, for 300 tokens at most, and gives up after 4 s.
+  asks with the verdict's strict JSON Schema at temperature 0; a server that refuses either (recent
+  Claude models refuse a temperature, Anthropic's compatible API accepts `json_schema` but not
+  `json_object`) is asked again without it, then with the bare request; 1200 tokens at most (models
+  that reason first need the room), 4 s for all attempts.
 - **The blend** is in log-odds, weighted by the model's confidence (an unsure model moves
   nothing). The model is not asked when the rules decided (≥ 0.95 or ≤ 0.05). A model
   confidently saying "bot" where the rules said human raises the verdict to "unsure": the visitor
@@ -201,47 +204,53 @@ extension, Brave, Safari, Firefox `resistFingerprinting`, Android), and automate
 captured by `bun run capture` (Playwright driving Chromium, installed Chrome and Brave, with and
 without a stealth layer). Add your own browsers from the demo's download button:
 `bun run bench --add notabot-signals.json --label human --source "Firefox on Linux"`. The model
-column is absent below: no model was run for these numbers.
+columns below come from `claude-haiku-5-5` through Anthropic's OpenAI-compatible API, asked with
+the middleware's own requests ("model alone" asks it on every sample; "rules + model" is what
+the middleware decides, which skips the model when the rules decided).
 
 The scores below use the correlation-capped combination described above.
 
 <!-- bench:start -->
 | Classifier                          | Humans passed | Humans challenged | Humans refused | Bots refused | Bots challenged | Bots passed |
 | ----------------------------------- | ------------- | ----------------- | -------------- | ------------ | --------------- | ----------- |
-| Rules alone                         | 9/9           | 0                 | 0              | 7/8          | 0               | 1           |
-| Logistic regression (leave-one-out) | 7/9           | 2                 | 0              | 5/8          | 2               | 1           |
+| Rules alone                         | 9/9           | 0                 | 0              | 7/8          | 1               | 0           |
+| Logistic regression (leave-one-out) | 9/9           | 0                 | 0              | 6/8          | 0               | 2           |
+| Model alone (claude-haiku-5-5)      | 9/9           | 0                 | 0              | 8/8          | 0               | 0           |
+| Rules + model (claude-haiku-5-5)    | 9/9           | 0                 | 0              | 7/8          | 1               | 0           |
 
 17 samples: 8 human profiles built from documented setups, 1 real browser captured by hand, 8 automated browsers captured by `scripts/capture.ts`. Bot probability per sample:
 
-| Sample                                | Label | Rules | Regression |
-| ------------------------------------- | ----- | ----- | ---------- |
-| chrome-mac                            | human | 0.00  | 0.21       |
-| keyboard-only                         | human | 0.00  | 0.21       |
-| screen-reader                         | human | 0.00  | 0.21       |
-| privacy-extension                     | human | 0.28  | 0.13       |
-| brave                                 | human | 0.00  | 0.15       |
-| safari                                | human | 0.00  | 0.21       |
-| firefox-rfp                           | human | 0.10  | 0.05       |
-| android-chrome                        | human | 0.00  | 0.36       |
-| brave-automated                       | bot   | 0.95  | 0.50       |
-| chrome-automated                      | bot   | 0.96  | 0.92       |
-| chrome-headed-hidden                  | bot   | 0.00  | 0.05       |
-| headless-new                          | bot   | 0.96  | 0.92       |
-| headless-shell                        | bot   | 0.99  | 1.00       |
-| human-brave-156-on-macos-real-profile | human | 0.00  | 0.36       |
-| spoofed-windows-ua                    | bot   | 0.98  | 0.94       |
-| stealth-js-layer                      | bot   | 1.00  | 0.79       |
-| stealth-linux-ua                      | bot   | 0.98  | 0.94       |
+| Sample                                | Label | Rules | Regression | Model alone | Rules + model |
+| ------------------------------------- | ----- | ----- | ---------- | ----------- | ------------- |
+| chrome-mac                            | human | 0.00  | 0.08       | 0.05        | 0.00          |
+| keyboard-only                         | human | 0.00  | 0.08       | 0.05        | 0.00          |
+| screen-reader                         | human | 0.00  | 0.08       | 0.05        | 0.00          |
+| privacy-extension                     | human | 0.28  | 0.06       | 0.10        | 0.21          |
+| brave                                 | human | 0.00  | 0.06       | 0.05        | 0.00          |
+| safari                                | human | 0.00  | 0.08       | 0.05        | 0.00          |
+| firefox-rfp                           | human | 0.10  | 0.03       | 0.09        | 0.10          |
+| android-chrome                        | human | 0.00  | 0.17       | 0.14        | 0.00          |
+| brave-automated                       | bot   | 0.95  | 0.24       | 0.95        | 0.95          |
+| chrome-automated                      | bot   | 0.98  | 0.96       | 0.98        | 0.98          |
+| chrome-headed-hidden                  | bot   | 0.65  | 0.11       | 0.90        | 0.75          |
+| headless-new                          | bot   | 0.98  | 0.96       | 0.98        | 0.98          |
+| headless-shell                        | bot   | 0.99  | 1.00       | 0.99        | 0.99          |
+| human-brave-156-on-macos-real-profile | human | 0.00  | 0.25       | 0.10        | 0.00          |
+| spoofed-windows-ua                    | bot   | 0.98  | 0.83       | 0.97        | 0.98          |
+| stealth-js-layer                      | bot   | 1.00  | 0.91       | 0.98        | 1.00          |
+| stealth-linux-ua                      | bot   | 0.99  | 0.98       | 0.98        | 0.99          |
 <!-- bench:end -->
 
-Read it for what it is: every automated browser but one carries a trace the rules know, and the
-one that does not (a headed Chrome with `AutomationControlled` off) passes all three. The real
-Brave (farbled canvas, audio and core count, its own WebGL renderer name) raises no rule; FingerprintJS's
-open-source BotD, run on the same live browsers, gave the same verdicts, the hidden headed Chrome
-("not a bot") included. An AI agent driving
-that same Brave through a browser extension is called human too: the slider refused its
-straight drag, and the targets now refuse clicks that jump onto each target. The regression,
-trained on so few samples, is weaker than the rules it learned from; it ships as
+Read it for what it is. The hardest sample, a headed Chrome with `AutomationControlled` off
+that FingerprintJS's open-source BotD also calls "not a bot", has no automation trace at all: the
+rules now give it the extra step only through its behaviour (a ruler-straight pointer in even
+steps, keys at a metronome's pace, which `robotic-pointer` and `robotic-typing` read), and the
+model, asked alone, refuses it. That is the model's job here: catching what the rules miss,
+never overruling a decided rule. A bot that moves and types like a person would pass all of it.
+The real Brave (farbled canvas, audio and core count, its own WebGL renderer name) raises no
+rule. An AI agent driving that same Brave through a browser extension is called human too: the
+slider refused its straight drag, and the targets now refuse clicks that jump onto each target.
+The regression, trained on so few samples, is weaker than the rules it learned from; it ships as
 `classifyLocal()`, a free, deterministic second opinion (`check({ local: true })`, and the demo's
 report), never as the decision.
 
