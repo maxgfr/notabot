@@ -15,7 +15,8 @@
       "!site/*.html",
       "!site/content",
       "!site/static",
-      "!site/_gen"
+      "!site/_gen",
+      "!DESIGN.md"
     ]
   },
   "formatter": {
