@@ -43,6 +43,7 @@ import { search, encodeSolution } from "notabot/pow";
 import { analyzeTrajectory } from "notabot/behavior";
 import { parseVerdict, sanitizeFeatures, proxySettings } from "notabot/llm";
 import { fnv1a } from "notabot/signals";
+import { identify, smartSignals } from "notabot/smart";
 // Browser entry points must import on a server (SSR) without touching the DOM.
 await import("notabot/widget");
 await import("notabot/embed");
@@ -58,6 +59,7 @@ if (parseVerdict('{"verdict":"bot","confidence":1}')?.verdict !== "bot") throw n
 if (sanitizeFeatures({ x: "free text" }).x !== undefined) throw new Error("sanitize");
 if (!proxySettings("https://x.dev/v1")) throw new Error("proxy");
 if (fnv1a("a").length !== 8) throw new Error("signals");
+if (typeof identify !== "function" || typeof smartSignals !== "function") throw new Error("smart");
 const { createNotabot, infoFromNode } = await import("notabot/middleware");
 const nb = createNotabot({ hmacKey: "k", maxnumber: 500 });
 const curl = await nb.verifyRequest(infoFromNode({ method: "GET", url: "/", headers: { host: "a.dev", "user-agent": "curl/8" } }));

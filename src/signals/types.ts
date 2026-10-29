@@ -134,6 +134,8 @@ export interface NotabotSignals {
   page: RealmSnapshot;
   iframe: RealmComparison | null;
   worker: RealmComparison | null;
+  /** Storage probes that private windows answer differently (see notabot/smart). */
+  privacy?: { opfs: "ok" | "error" | "missing" } | null;
   /** Collectors that failed or timed out, with their error. */
   errors: Record<string, string>;
 }

@@ -65,6 +65,10 @@
       "types": "./dist/types/middleware/index.d.ts",
       "default": "./dist/lib/middleware/index.js"
     },
+    "./smart": {
+      "types": "./dist/types/smart/index.d.ts",
+      "default": "./dist/lib/smart/index.js"
+    },
     "./widget": {
       "types": "./dist/types/widget/index.d.ts",
       "default": "./dist/lib/widget/index.js"

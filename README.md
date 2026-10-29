@@ -155,6 +155,7 @@ Every layer is its own entry point:
 | `notabot/llm`        | `toFeatures()`, `classify()`, `visitorStore()` (llm-connect), `SYSTEM_PROMPT`                               |
 | `notabot/server`     | `createChallenge()`, `verifySolution()`, `signToken()`, `verifyToken()` (WebCrypto: Bun, Node 20+, Workers) |
 | `notabot/middleware` | `createNotabot()`, `notabotExpress()`, `notabotHono()`, `REQUEST_RULES`: validate requests on the server    |
+| `notabot/smart`      | `identify()`, `smartSignals()`: visitor id and smart signals, in-house                                      |
 | `notabot/widget`     | `defineNotabot()`, `mountNotabot()`, `guardForm()`                                                          |
 | `notabot/embed`      | the script-tag bootstrap                                                                                    |
 
@@ -243,6 +244,45 @@ straight drag, and the targets now refuse clicks that jump onto each target. The
 trained on so few samples, is weaker than the rules it learned from; it ships as
 `classifyLocal()`, a free, deterministic second opinion (`check({ local: true })`, and the demo's
 report), never as the decision.
+
+## Smart signals, in-house
+
+Commercial fingerprinting services keep their most useful outputs for paid plans: a visitor id
+that holds across visits, and "smart signals" such as private mode, virtual machines or VPNs.
+notabot computes them from the readings it already has, in the page or on your server, with
+nothing sent anywhere (`notabot/smart`):
+
+```ts
+import { identify, smartSignals } from "notabot/smart";
+
+const { visitorId, confidence } = await identify(signals); // 20 hex characters, 0 to 1
+smartSignals(signals);
+// { privacyBrowser: "brave" | "resist-fingerprinting" | null, farbling, privateMode,
+//   virtualMachine, tampering: { detected, lies, realmMismatches } }
+```
+
+- **Visitor id:** a hash of the readings that stay put (browser major version, platform,
+  languages, time zone, screen, cores, memory, WebGL, WebGPU, fonts, codecs, engine quirks, the
+  canvas only when two reads agree, audio). No clock, no window size, no behaviour. The confidence
+  drops when a privacy browser randomises readings (Brave farbles per session and per site, so its
+  id changes per session, by design), under resistFingerprinting, in a likely private session, or
+  when canvas, WebGL or audio are missing. On the server the id is keyed with your HMAC key: two
+  sites never share one.
+- **Private mode:** cautious evidence only (Firefox and Safari refusing the origin-private file
+  system; a Chromium quota far below a normal profile's, Brave excepted since it caps every
+  profile), reported as likely, unlikely or unknown, and never held against the visitor.
+- **Virtual machine:** a VMware, VirtualBox, Parallels, Hyper-V, QEMU or software renderer.
+- **Privacy browser:** Brave, or resistFingerprinting (Firefox's, which Tor Browser is built on:
+  the two read alike from a page).
+- **On the server:** a Tor exit node (`torExits: torExitList()`, the Tor Project's own list,
+  fetched at most hourly; flagged `tor-exit`, weak), a VPN when the IP's time zone disagrees with
+  the browser's (a country that disagrees is listed as evidence, not decided on: travellers do
+  that), a hosting network, velocity.
+- **Sealed results:** `/verify` seals all of it in the signed token (`smart`), and
+  `/siteverify` returns it to your backend, as a commercial server API would.
+
+Left out on purpose: DevTools detection (its tricks are unreliable and V8 broke the last one) and
+the mobile-app signals (jailbreak, emulators, cloned apps), which need native code.
 
 ## Enforce on your server: the middleware
 

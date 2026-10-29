@@ -138,5 +138,22 @@
   "catches.m2": "AI agents driving a real browser with a real GPU: their signals are a person's.",
   "catches.m3": "Human solving farms, paid to pass any challenge.",
   "catches.answer": "For those: the server's signals (JA4, headers, fingerprint velocity, a price per attempt) and agents that sign their requests (Web Bot Auth). Our own benchmark shows the gap: a headed Chrome with automation flags hidden passes every check here.",
-  "catches.sources": "Sources:"
+  "catches.sources": "Sources:",
+  "smart.title": "Smart signals, in-house",
+  "smart.lede": "What fingerprinting services sell on top of their open-source libraries, computed here from the same readings. With a server, they are sealed in the token and handed to your backend by /siteverify.",
+  "smart.visitorId": "Visitor id",
+  "smart.visitorIdValue": "{id} · confidence {c} %",
+  "smart.privacyBrowser": "Privacy browser",
+  "smart.privateMode": "Private window",
+  "smart.virtualMachine": "Virtual machine",
+  "smart.tampering": "Tampering",
+  "smart.server": "On the server",
+  "smart.serverValue": "Tor exit node, VPN (IP time zone), hosting network, velocity",
+  "smart.none": "none",
+  "smart.yes": "yes",
+  "smart.no": "no",
+  "smart.likely": "likely",
+  "smart.unlikely": "unlikely",
+  "smart.unknown": "unknown",
+  "smart.farbled": "{name}, readings randomised per session"
 }

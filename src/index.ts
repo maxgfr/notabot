@@ -25,6 +25,7 @@ import {
 } from "./score/index";
 import { collect } from "./signals/index";
 import type { NotabotSignals } from "./signals/types";
+import { identify, type SealedSignals, type SmartSignals, smartSignals } from "./smart/index";
 
 export type Step = "signals" | "rules" | "pow" | "model" | "verify" | "done";
 
@@ -75,6 +76,12 @@ export interface CheckResult {
   zone: number | null;
   /** The challenge the server chose for an "unsure" verdict (a slider, or targets), signed. */
   visible: VisibleChallenge | null;
+  /** The browser's smart signals: privacy browser, private mode, virtual machine, tampering. */
+  smart: SmartSignals;
+  /** A visitor id from the readings that stay put, and how far to trust it (see notabot/smart). */
+  identity: { visitorId: string; confidence: number };
+  /** The server's sealed signals (visitor id keyed by the server, VPN, Tor…), with verifyUrl. */
+  sealed: SealedSignals | null;
 }
 
 /** A slider and its zone, or targets to activate in order ([x, y] percents of their box). */
@@ -263,6 +270,7 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
   let expiresAt: number | null = null;
   let zone: number | null = null;
   let visible: VisibleChallenge | null = null;
+  let sealed: SealedSignals | null = null;
 
   if (options.verifyUrl) {
     step("verify");
@@ -297,7 +305,9 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
     if (typeof body.exp === "number") expiresAt = body.exp;
     if (typeof body.zone === "number") zone = body.zone;
     visible = visibleOf(body.challenge) ?? (zone !== null ? { kind: "slide", zone } : null);
+    if (body.smart && typeof body.smart === "object") sealed = body.smart as SealedSignals;
   }
+  const { visitorId, confidence } = await identify(signals);
   step("done");
   return {
     signals,
@@ -313,6 +323,9 @@ export async function check(options: CheckOptions = {}): Promise<CheckResult> {
     expiresAt,
     zone,
     visible,
+    smart: smartSignals(signals),
+    identity: { visitorId, confidence },
+    sealed,
   };
 }
 
@@ -336,3 +349,4 @@ export type { Challenge, Solution } from "./pow/index";
 export { RULES, type ScoreResult, score, type Verdict } from "./score/index";
 export { collect } from "./signals/index";
 export type { NotabotSignals } from "./signals/types";
+export { identify, type SealedSignals, type SmartSignals, smartSignals } from "./smart/index";

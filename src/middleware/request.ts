@@ -82,6 +82,11 @@ export const CROSS_CHECK_RULES = [
   },
   { id: "rate", weight: 0.4, explain: "More requests a minute from this IP than allowed." },
   {
+    id: "tor-exit",
+    weight: 0.3,
+    explain: "The IP is a Tor exit node (many Tor users are people: weak evidence).",
+  },
+  {
     id: "probe-mismatch",
     weight: 0.6,
     explain:

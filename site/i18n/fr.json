@@ -138,5 +138,22 @@
   "catches.m2": "Les agents IA qui pilotent un vrai navigateur sur un vrai GPU : leurs signaux sont ceux d'une personne.",
   "catches.m3": "Les fermes de résolution humaines, payées pour passer n'importe quel défi.",
   "catches.answer": "Pour ceux-là : les signaux du serveur (JA4, en-têtes, vélocité d'empreinte, un prix par tentative) et les agents qui signent leurs requêtes (Web Bot Auth). Notre propre benchmark montre l'écart : un Chrome avec fenêtre, drapeaux d'automatisation masqués, passe tous les contrôles d'ici.",
-  "catches.sources": "Sources :"
+  "catches.sources": "Sources :",
+  "smart.title": "Signaux avancés, faits maison",
+  "smart.lede": "Ce que les services d'empreinte vendent en plus de leurs bibliothèques open source, calculé ici à partir des mêmes relevés. Avec un serveur, ils sont scellés dans le jeton et remis à votre backend par /siteverify.",
+  "smart.visitorId": "Identifiant visiteur",
+  "smart.visitorIdValue": "{id} · confiance {c} %",
+  "smart.privacyBrowser": "Navigateur protecteur",
+  "smart.privateMode": "Fenêtre privée",
+  "smart.virtualMachine": "Machine virtuelle",
+  "smart.tampering": "Falsification",
+  "smart.server": "Côté serveur",
+  "smart.serverValue": "Nœud de sortie Tor, VPN (fuseau de l'IP), hébergeur, vélocité",
+  "smart.none": "aucun",
+  "smart.yes": "oui",
+  "smart.no": "non",
+  "smart.likely": "probable",
+  "smart.unlikely": "peu probable",
+  "smart.unknown": "inconnu",
+  "smart.farbled": "{name}, relevés brouillés à chaque session"
 }

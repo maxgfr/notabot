@@ -698,6 +698,47 @@ main > section:not(.border)::before {
 
 /* Inspector's report */
 
+.smart-sheet {
+  margin: 8px 0 28px;
+  display: grid;
+  gap: 8px;
+}
+.smart-sheet h3 {
+  font-size: 1.05rem;
+}
+.smart-sheet .hint {
+  max-width: 76ch;
+}
+.smart {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 24px;
+  margin: 4px 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 10px;
+  font-size: 0.92rem;
+}
+.smart dt {
+  color: var(--ink-2);
+}
+.smart dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.smart dd:first-of-type {
+  font-family: var(--mono);
+  font-size: 0.86rem;
+}
+@media (max-width: 520px) {
+  .smart {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .smart dd {
+    margin-bottom: 8px;
+  }
+}
+
 .report-total {
   font-size: 1.2rem;
   font-weight: 640;
