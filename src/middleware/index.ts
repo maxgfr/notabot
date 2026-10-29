@@ -43,6 +43,7 @@ import {
   verifyToken,
 } from "../server/index";
 import type { NotabotSignals } from "../signals/types";
+import { identify, type SealedSignals, smartSignals } from "../smart/index";
 import { ja4h } from "./fingerprints";
 import {
   CROSS_CHECK_RULES,
@@ -119,6 +120,11 @@ export interface NotabotServerOptions {
    * 429. Off by default.
    */
   ratePerMinute?: number;
+  /**
+   * Tor exit node addresses (a set, or a loader such as `torExitList()`): a request from one is
+   * flagged `tor-exit` (weak: many Tor users are people) and `smart.tor` is set.
+   */
+  torExits?: ReadonlySet<string> | (() => Promise<ReadonlySet<string>>);
   /** The challenges a visitor in doubt may get, in turn. Default both: ["slide", "targets"]. */
   visibleChallenges?: VisibleChallenge["kind"][];
   /**
@@ -624,7 +630,13 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
   /** Signs a token for this request: origin, user agent and IP bound as the options say. */
   async function issue(
     info: RequestInfo,
-    claims: { verdict: Verdict; bot: number; zone?: number; targets?: [number, number][] },
+    claims: {
+      verdict: Verdict;
+      bot: number;
+      zone?: number;
+      targets?: [number, number][];
+      smart?: SealedSignals;
+    },
   ): Promise<{ token: string; exp: number }> {
     const origin = info.headers.get("origin");
     const iph = bind && info.ip ? await ipHashOf(info.ip) : undefined;
@@ -692,6 +704,58 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
         detail: `${fps} fingerprints`,
       });
     return flags;
+  }
+
+  const crossCheck = (id: (typeof CROSS_CHECK_RULES)[number]["id"], detail: string): Flag => {
+    const rule = CROSS_CHECK_RULES.find((r) => r.id === id) as { weight: number; explain: string };
+    return { id, category: "consistency", weight: rule.weight, explain: rule.explain, detail };
+  };
+
+  /** Whether the IP is a Tor exit node, when the options give the list. */
+  async function isTorExit(ip: string | null | undefined): Promise<boolean> {
+    if (!ip || !options.torExits) return false;
+    const list =
+      typeof options.torExits === "function" ? await options.torExits() : options.torExits;
+    return list.has(ip);
+  }
+
+  /**
+   * The smart signals of a submission: the browser's (private mode, VM, privacy browser,
+   * tampering), the visitor id keyed with this server's key (so two sites never share one), and
+   * the network's (Tor, a VPN's time zone or country).
+   */
+  async function sealedSignals(
+    info: RequestInfo,
+    signals: NotabotSignals,
+    flags: Flag[],
+    tor: boolean,
+  ): Promise<SealedSignals> {
+    const browser = smartSignals(signals);
+    const id = await identify(signals, await hmacHex(key, "visitor"));
+    const vpn: string[] = [];
+    const tz = flags.find((f) => f.id === "server-timezone");
+    if (tz) vpn.push(`time zone ${tz.detail}`);
+    const country = info.network?.country?.toUpperCase();
+    const regions = signals.env.languages
+      .map((l) => l.split("-")[1]?.toUpperCase())
+      .filter(Boolean);
+    if (country && regions.length && !regions.includes(country))
+      vpn.push(`IP in ${country}, languages for ${[...new Set(regions)].join(", ")}`);
+    return {
+      visitorId: id.visitorId,
+      confidence: id.confidence,
+      privacyBrowser: browser.privacyBrowser,
+      farbling: browser.farbling,
+      privateMode: browser.privateMode,
+      virtualMachine: browser.virtualMachine,
+      tampering: browser.tampering.detected,
+      tor,
+      // A time zone that disagrees is the evidence; a country alone is a traveller as often.
+      vpn: tz !== undefined,
+      vpnEvidence: vpn,
+      hosting: flags.some((f) => f.id === "hosting-network"),
+      velocity: flags.some((f) => f.id === "fingerprint-velocity" || f.id === "fingerprint-churn"),
+    };
   }
 
   /** Keyed hash of the client a puzzle is bound to: its IP (when known) and User-Agent. */
@@ -797,6 +861,8 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       ...(await velocityFlags(info, body.signals)),
       ...(await probeFlags(pow.solution.salt, body.probes)),
     ];
+    const tor = await isTorExit(info.ip);
+    if (tor) flags.push(crossCheck("tor-exit", info.ip ?? ""));
     const rulesBot = combineFlags(flags);
     const modelBot = rulesDecided(rulesBot)
       ? null
@@ -813,9 +879,13 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     // The visible challenge, chosen and signed here so the page cannot pick it: a slider and
     // its zone, or targets to activate in order, in turn.
     const visible = verdict === "unsure" ? visibleChallenge(options.visibleChallenges) : null;
+    // What a commercial service would sell as "smart signals", sealed in the token so the
+    // backend reads them from /siteverify.
+    const smart = await sealedSignals(info, body.signals, flags, tor);
     const { token, exp } = await issue(info, {
       verdict,
       bot,
+      smart,
       ...(visible?.kind === "slide" ? { zone: visible.zone } : {}),
       ...(visible?.kind === "targets" ? { targets: visible.targets } : {}),
     });
@@ -826,6 +896,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
         verdict,
         bot,
         exp,
+        smart,
         ...(visible ? { challenge: visible } : {}),
         ...(visible?.kind === "slide" ? { zone: visible.zone } : {}),
         flags: flags.map((f) => f.id),
@@ -888,7 +959,11 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     if (!(await store.claim(`token:slide:${claims.jti}`, lifetime(claims))))
       return fail(403, "replayed", "token already slid");
     const bot = Math.min(claims.bot, 0.3);
-    const { token, exp } = await issue(info, { verdict: "human", bot });
+    const { token, exp } = await issue(info, {
+      verdict: "human",
+      bot,
+      ...(claims.smart ? { smart: claims.smart } : {}),
+    });
     return { status: 200, body: { passed: true, token, verdict: "human", bot, exp } };
   }
 
@@ -940,6 +1015,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
         score: Math.round((1 - c.bot) * 100) / 100,
         challenge_ts: new Date(c.iat * 1000).toISOString(),
         hostname: c.origin ? new URL(c.origin).hostname : null,
+        ...(c.smart ? { smart: c.smart } : {}),
       },
     };
   }
@@ -1052,6 +1128,7 @@ export function refusal(decision: Decision): Response {
   );
 }
 
+export type { SealedSignals } from "../smart/index";
 export * from "./adapters";
 export {
   CHROMIUM_H2_SETTINGS,
@@ -1081,6 +1158,7 @@ export {
   type ReplayStore,
   redisStore,
 } from "./store";
+export { clearTorExitList, TOR_EXIT_LIST_URL, torExitList } from "./tor";
 export {
   type AgentPolicy,
   type AgentResult,

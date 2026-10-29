@@ -11,6 +11,7 @@ import {
   signedPart,
 } from "../pow/index";
 import type { Verdict } from "../score/index";
+import type { SealedSignals } from "../smart/index";
 
 export interface CreateChallengeOptions {
   hmacKey: string;
@@ -121,6 +122,8 @@ export interface TokenClaims {
   zone?: number;
   /** Or the targets to activate in order, as [x, y] percents of their box. */
   targets?: [number, number][];
+  /** Smart signals sealed by the server (visitor id, private mode, VM, VPN, Tor…). */
+  smart?: SealedSignals;
 }
 
 /** A compact signed token, `base64url(claims).hex(HMAC)`, for the site's backend to check. */

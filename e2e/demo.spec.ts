@@ -104,3 +104,13 @@ test("messages can be overridden by attribute, and other languages are built in"
   await expect(check(page).locator(".label")).toHaveText("Human here");
   await expect(check(page).locator(".by")).toHaveText("notabot, Open Source");
 });
+
+test("smart signals, in-house: a visitor id and the browser's signals, on arrival", async ({
+  page,
+}) => {
+  await page.goto("/notabot/");
+  const smart = page.locator("#smart-signals");
+  await expect(smart.locator("dd").first()).toHaveText(/^[0-9a-f]{20} · confidence \d+ %$/);
+  // Headless Chromium draws with SwiftShader: a virtual machine's or a server's graphics.
+  await expect(smart).toContainText("SwiftShader");
+});

@@ -4,6 +4,7 @@ import { buildPrompt, type Features, SYSTEM_PROMPT, toFeatures } from "../../src
 import { RULES, type ScoreResult, score, verdictOf } from "../../src/score/index";
 import { collect } from "../../src/signals/index";
 import type { NotabotSignals } from "../../src/signals/types";
+import { identify, smartSignals } from "../../src/smart/index";
 import { sharedTracker } from "../../src/widget/element";
 import { defineNotabot, type NotabotCheck, type VerdictDetail } from "../../src/widget/index";
 import { GROUPS, RULES_FR } from "./catalog";
@@ -70,6 +71,49 @@ function renderLedger(s: NotabotSignals, r: ScoreResult | null): void {
     return section;
   });
   ledger.replaceChildren(...groups);
+}
+
+/** The in-house smart signals: what commercial services sell, from the same readings. */
+async function renderSmart(s: NotabotSignals): Promise<void> {
+  const smart = smartSignals(s);
+  const id = await identify(s);
+  const yesNo = (v: boolean) => t(v ? "smart.yes" : "smart.no");
+  const browserName = { brave: "Brave", "resist-fingerprinting": "resistFingerprinting" };
+  const rows: [string, string][] = [
+    [
+      t("smart.visitorId"),
+      t("smart.visitorIdValue", { id: id.visitorId, c: Math.round(id.confidence * 100) }),
+    ],
+    [
+      t("smart.privacyBrowser"),
+      smart.privacyBrowser
+        ? smart.farbling
+          ? t("smart.farbled", { name: browserName[smart.privacyBrowser] })
+          : browserName[smart.privacyBrowser]
+        : t("smart.none"),
+    ],
+    [
+      t("smart.privateMode"),
+      t(
+        smart.privateMode === null
+          ? "smart.unknown"
+          : smart.privateMode
+            ? "smart.likely"
+            : "smart.unlikely",
+      ),
+    ],
+    [t("smart.virtualMachine"), smart.virtualMachineEvidence ?? yesNo(smart.virtualMachine)],
+    [
+      t("smart.tampering"),
+      smart.tampering.detected
+        ? `${smart.tampering.lies + smart.tampering.realmMismatches}`
+        : yesNo(false),
+    ],
+    [t("smart.server"), t("smart.serverValue")],
+  ];
+  $("smart-signals").replaceChildren(
+    ...rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, v)]),
+  );
 }
 
 function renderReport(r: ScoreResult, bot: number): void {
@@ -180,6 +224,7 @@ async function start(): Promise<void> {
   fillPassport(signals, null);
   renderLedger(signals, rules);
   showPrompt(features());
+  void renderSmart(signals);
   mountSimulator(() => signals);
   mountServerPanel(signals);
 

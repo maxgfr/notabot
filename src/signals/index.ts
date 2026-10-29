@@ -42,11 +42,12 @@ export async function collect(options: CollectOptions = {}): Promise<NotabotSign
     safe("fonts", collectFonts, [] as string[]),
   ]);
   const page = snapshotOf(window);
-  const [automation, tampering, iframe, worker] = await Promise.all([
+  const [automation, tampering, iframe, worker, privacy] = await Promise.all([
     safe("automation", () => collectAutomation(env, webgl), null),
     safe("tampering", collectTampering, { lies: [], checked: 0, toStringPatched: false }),
     safe("iframe", () => collectIframe(page), null),
     options.worker === false ? null : safe("worker", () => collectWorker(page), null),
+    safe("privacy", collectPrivacy, null),
   ]);
   if (!automation) throw new Error(`notabot: automation checks failed (${errors.automation})`);
   return {
@@ -60,8 +61,26 @@ export async function collect(options: CollectOptions = {}): Promise<NotabotSign
     page,
     iframe,
     worker,
+    privacy,
     errors,
   };
+}
+
+/**
+ * Whether the page may open its origin-private file system: Firefox and Safari refuse it in a
+ * private window. Read-only: the directory handle is asked for, nothing is written.
+ */
+async function collectPrivacy(): Promise<NonNullable<NotabotSignals["privacy"]>> {
+  const storage = navigator.storage as
+    | (StorageManager & { getDirectory?: () => Promise<unknown> })
+    | undefined;
+  if (!storage?.getDirectory) return { opfs: "missing" };
+  try {
+    await withTimeout(storage.getDirectory(), 500, null);
+    return { opfs: "ok" };
+  } catch {
+    return { opfs: "error" };
+  }
 }
 
 export { automationGlobals, collectAutomation } from "./automation";
