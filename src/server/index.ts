@@ -81,6 +81,10 @@ export interface TokenClaims {
   exp: number;
   /** Random id, to refuse a token used twice. */
   jti: string;
+  /** Hash of the User-Agent the token was issued to (see notabot/middleware). */
+  uah?: string;
+  /** Keyed hash of the IP the token was issued to. */
+  iph?: string;
 }
 
 /** A compact signed token, `base64url(claims).hex(HMAC)`, for the site's backend to check. */

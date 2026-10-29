@@ -16,6 +16,7 @@ export const ENTRYPOINTS = [
   "src/pow/index.ts",
   "src/llm/index.ts",
   "src/server/index.ts",
+  "src/middleware/index.ts",
   "src/widget/index.ts",
   "src/embed.ts",
 ];
