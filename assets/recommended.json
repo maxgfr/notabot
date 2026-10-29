@@ -1,0 +1,38 @@
+[
+  {
+    "provider": "openrouter",
+    "model": "anthropic/claude-haiku-5.5",
+    "name": "Claude Haiku 5.5",
+    "costInput": 0.1
+  },
+  {
+    "provider": "groq",
+    "model": "qwen/qwen3.8-27b",
+    "name": "Qwen3.8 27B",
+    "costInput": 0.8
+  },
+  {
+    "provider": "openai",
+    "model": "gpt-6.1-terra",
+    "name": "OpenAI: GPT-6.1 Terra",
+    "costInput": 1
+  },
+  {
+    "provider": "anthropic",
+    "model": "claude-haiku-5-5",
+    "name": "Anthropic: Claude Haiku 5.5",
+    "costInput": 0.1
+  },
+  {
+    "provider": "google",
+    "model": "gemini-4-argon",
+    "name": "Google: Gemini 4 Argon",
+    "costInput": 2
+  },
+  {
+    "provider": "mistral",
+    "model": "ministral-14b-2512",
+    "name": "Ministral 3 14B",
+    "costInput": 0.2
+  }
+]

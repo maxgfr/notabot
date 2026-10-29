@@ -1,0 +1,128 @@
+{
+  "name": "notabot",
+  "version": "0.0.0-development",
+  "description": "Open-source bot detection, front-end only: collect every browser signal, cross-check them for lies, run an invisible proof-of-work and ask a small LLM of your choice (llm-connect) for a human/bot verdict. One script tag or an npm package.",
+  "author": "maxgfr",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maxgfr/notabot.git"
+  },
+  "homepage": "https://maxgfr.github.io/notabot/",
+  "bugs": {
+    "url": "https://github.com/maxgfr/notabot/issues"
+  },
+  "keywords": [
+    "captcha",
+    "captcha-alternative",
+    "bot-detection",
+    "anti-bot",
+    "browser-fingerprinting",
+    "fingerprint",
+    "headless-detection",
+    "proof-of-work",
+    "llm",
+    "ai",
+    "llm-connect",
+    "web-components",
+    "github-pages",
+    "privacy"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/lib/index.js"
+    },
+    "./signals": {
+      "types": "./dist/types/signals/index.d.ts",
+      "default": "./dist/lib/signals/index.js"
+    },
+    "./score": {
+      "types": "./dist/types/score/index.d.ts",
+      "default": "./dist/lib/score/index.js"
+    },
+    "./behavior": {
+      "types": "./dist/types/behavior/index.d.ts",
+      "default": "./dist/lib/behavior/index.js"
+    },
+    "./pow": {
+      "types": "./dist/types/pow/index.d.ts",
+      "default": "./dist/lib/pow/index.js"
+    },
+    "./llm": {
+      "types": "./dist/types/llm/index.d.ts",
+      "default": "./dist/lib/llm/index.js"
+    },
+    "./server": {
+      "types": "./dist/types/server/index.d.ts",
+      "default": "./dist/lib/server/index.js"
+    },
+    "./widget": {
+      "types": "./dist/types/widget/index.d.ts",
+      "default": "./dist/lib/widget/index.js"
+    },
+    "./embed": {
+      "types": "./dist/types/embed.d.ts",
+      "default": "./dist/lib/embed.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/lib/index.js",
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist/lib",
+    "dist/types",
+    "dist/cdn",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./dist/lib/embed.js",
+    "./dist/cdn/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "dev": "bun run build && PORT=4318 bun scripts/serve.ts",
+    "build": "bun scripts/build.ts",
+    "build:lib": "bun scripts/build.ts lib",
+    "build:site": "bun scripts/build.ts site",
+    "typecheck": "tsc -p .",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "bun test tests",
+    "test:e2e": "bun run build && playwright test",
+    "catalog": "llm-models catalog --npm callable --require openai,anthropic,google,mistral --out assets/models.json",
+    "recommended": "bun scripts/recommended.ts",
+    "release": "semantic-release",
+    "test:package": "bun run build:lib && bun scripts/check-package.ts",
+    "test:live": "playwright test -c playwright.live.config.ts",
+    "test:package:published": "bun scripts/check-package.ts --published"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.91",
+    "@ai-sdk/google": "^4.0.107",
+    "@ai-sdk/mistral": "^4.0.74",
+    "@ai-sdk/openai": "^4.0.104",
+    "@ai-sdk/openai-compatible": "^3.0.80",
+    "@ai-sdk/provider": "^4.0.34",
+    "ai": "^7.0.155",
+    "llm-connect": "^2.5.0",
+    "llm-models": "^1.14.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.3",
+    "@playwright/test": "^1.64.1",
+    "@semantic-release/exec": "^7.1.0",
+    "@types/bun": "^1.4.4",
+    "conventional-changelog-conventionalcommits": "^9",
+    "semantic-release": "^25.0.9",
+    "typescript": "^7.0.2"
+  }
+}

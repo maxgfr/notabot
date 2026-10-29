@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="{{lang}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; worker-src blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <title>{{meta.title}}</title>
+    <meta name="description" content="{{meta.description}}" />
+    <meta property="og:title" content="{{meta.title}}" />
+    <meta property="og:description" content="{{meta.description}}" />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#e6eadd" />
+    <link rel="alternate" hreflang="en" href="{{lang-url:en}}" />
+    <link rel="alternate" hreflang="fr" href="{{lang-url:fr}}" />
+    <link rel="icon" href="{{src}}static/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="{{src}}styles/site.css" />
+  </head>
+  <body data-root="{{root}}">
+    <a class="skip" href="#desk">{{nav.skip}}</a>
+    <header class="rail">
+      <a class="wordmark" href="{{root}}">notabot</a>
+      <nav aria-label="{{nav.label}}">
+        <a href="#papers">{{nav.papers}}</a>
+        <a href="#report">{{nav.report}}</a>
+        <a href="#officer">{{nav.officer}}</a>
+        <a href="#embed">{{nav.embed}}</a>
+        <a href="https://github.com/maxgfr/notabot">GitHub</a>
+        <a href="https://www.npmjs.com/package/notabot">npm</a>
+        <a class="lang" href="{{nav.langHref}}" hreflang="{{nav.langCode}}" lang="{{nav.langCode}}">{{nav.langLabel}}</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="border" aria-labelledby="title">
+        <div class="document">
+          <article class="passport" id="passport" aria-label="{{passport.aria}}">
+            <svg class="guilloche" id="guilloche" aria-hidden="true" focusable="false"></svg>
+            <header class="passport-head">
+              <p class="passport-title"><span>Browser passport</span><span>Passeport navigateur</span></p>
+              <p class="passport-type"><span class="small">Type</span><span class="mono">P</span></p>
+              <p class="passport-code"><span class="small">Code</span><span class="mono" id="pp-code">···</span></p>
+            </header>
+            <div class="passport-body">
+              <figure class="portrait">
+                <canvas id="portrait" width="240" height="300" aria-label="{{passport.portrait}}"></canvas>
+                <figcaption class="small">{{passport.portraitCaption}}</figcaption>
+              </figure>
+              <dl class="passport-fields" id="pp-fields">
+                <div><dt>Engine / Moteur</dt><dd id="pp-engine">…</dd></div>
+                <div><dt>Version</dt><dd id="pp-version">…</dd></div>
+                <div><dt>System / Système</dt><dd id="pp-system">…</dd></div>
+                <div><dt>Languages / Langues</dt><dd id="pp-languages">…</dd></div>
+                <div><dt>Time zone / Fuseau</dt><dd id="pp-timezone">…</dd></div>
+                <div><dt>Screen / Écran</dt><dd id="pp-screen">…</dd></div>
+                <div><dt>Cores · memory / Cœurs · mémoire</dt><dd id="pp-cpu">…</dd></div>
+                <div class="wide"><dt>Graphics / Graphisme</dt><dd id="pp-gpu">…</dd></div>
+                <div><dt>Print no. / Empreinte nº</dt><dd class="mono" id="pp-print">…</dd></div>
+                <div><dt>Issued / Délivré</dt><dd class="mono" id="pp-issued">…</dd></div>
+              </dl>
+            </div>
+            <div class="stamp-zone" id="stamp-zone" aria-live="polite"></div>
+            <p class="mrz" id="mrz" aria-label="{{passport.mrz}}"><span>P&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span><span>&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span></p>
+          </article>
+        </div>
+
+        <div class="desk" id="desk">
+          <h1 id="title">{{border.title}}</h1>
+          <p class="lede">{{border.lede}}</p>
+          <div class="booth">
+            <notabot-check id="check" mode="click" theme="light" lang="{{lang}}"></notabot-check>
+            <ol class="checkpoints" id="checkpoints" aria-label="{{border.checkpoints}}">
+              <li data-step="signals"><span>{{step.signals}}</span></li>
+              <li data-step="rules"><span>{{step.rules}}</span></li>
+              <li data-step="pow"><span>{{step.pow}}</span></li>
+              <li data-step="model"><span>{{step.model}}</span></li>
+            </ol>
+            <p class="booth-note">{{border.note}}</p>
+            <button type="button" class="link" id="force-slider" hidden>{{border.forceSlider}}</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="papers" id="papers" aria-labelledby="papers-title">
+        <div class="section-head">
+          <h2 id="papers-title">{{papers.title}}</h2>
+          <p>{{papers.lede}} <span id="papers-took"></span></p>
+          <div class="actions">
+            <button type="button" class="button" id="copy-json">{{papers.copy}}</button>
+            <button type="button" class="button quiet" id="download-json">{{papers.download}}</button>
+          </div>
+        </div>
+        <div class="ledger" id="ledger" aria-live="polite">
+          <p class="placeholder">{{papers.loading}}</p>
+        </div>
+      </section>
+
+      <section class="report" id="report" aria-labelledby="report-title">
+        <div class="section-head">
+          <h2 id="report-title">{{report.title}}</h2>
+          <p>{{report.lede}}</p>
+        </div>
+        <div class="report-sheet">
+          <p class="report-total" id="report-total">{{report.pending}}</p>
+          <ol class="rules" id="rules"></ol>
+        </div>
+      </section>
+
+      <section class="officer" id="officer" aria-labelledby="officer-title">
+        <div class="section-head">
+          <h2 id="officer-title">{{officer.title}}</h2>
+          <p>{{officer.lede}}</p>
+        </div>
+        <div class="officer-grid">
+          <form class="officer-form" id="officer-form" novalidate>
+            <fieldset class="modes">
+              <legend>{{officer.modeLegend}}</legend>
+              <label><input type="radio" name="mode" value="key" checked /> {{officer.modeKey}}</label>
+              <label><input type="radio" name="mode" value="proxy" /> {{officer.modeProxy}}</label>
+              <label><input type="radio" name="mode" value="local" /> {{officer.modeLocal}}</label>
+            </fieldset>
+            <div class="mode-panel" data-mode="key">
+              <label for="provider">{{officer.provider}}</label>
+              <select id="provider"></select>
+              <label for="model">{{officer.model}}</label>
+              <input id="model" list="model-list" autocomplete="off" spellcheck="false" />
+              <datalist id="model-list"></datalist>
+              <p class="hint" id="recommended-hint"></p>
+              <label for="api-key">{{officer.key}}</label>
+              <input id="api-key" type="password" autocomplete="off" spellcheck="false" />
+              <p class="hint">{{officer.keyHint}}</p>
+            </div>
+            <div class="mode-panel" data-mode="proxy" hidden>
+              <label for="endpoint">{{officer.endpoint}}</label>
+              <input id="endpoint" type="url" placeholder="https://notabot.example.workers.dev/v1" spellcheck="false" />
+              <label for="proxy-model">{{officer.model}}</label>
+              <input id="proxy-model" placeholder="default" spellcheck="false" />
+              <p class="hint">{{officer.proxyHint}}</p>
+            </div>
+            <div class="mode-panel" data-mode="local" hidden>
+              <label for="local-endpoint">{{officer.endpoint}}</label>
+              <input id="local-endpoint" type="url" value="http://localhost:11434/v1" spellcheck="false" />
+              <label for="local-model">{{officer.model}}</label>
+              <input id="local-model" value="llama3.2" spellcheck="false" />
+              <p class="hint">{{officer.localHint}}</p>
+            </div>
+            <div class="actions">
+              <button type="button" class="button quiet" id="test-model">{{officer.test}}</button>
+              <button type="submit" class="button" id="ask-model">{{officer.ask}}</button>
+            </div>
+            <p class="status" id="officer-status" role="status"></p>
+          </form>
+          <div class="transcript">
+            <h3>{{officer.promptTitle}}</h3>
+            <p class="hint">{{officer.promptHint}}</p>
+            <pre class="prompt" id="prompt" tabindex="0">{{officer.promptPending}}</pre>
+            <h3>{{officer.answerTitle}}</h3>
+            <pre class="answer" id="answer" tabindex="0">—</pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="unreadable" aria-labelledby="unreadable-title">
+        <div class="section-head">
+          <h2 id="unreadable-title">{{network.title}}</h2>
+          <p>{{network.lede}}</p>
+        </div>
+        <dl class="unreadable-list">
+          <div><dt>{{network.ipTitle}}</dt><dd>{{network.ip}} <a href="https://www.youtube.com/watch?v=pqtDUrLReI4&amp;t=224s">[03:44]</a></dd></div>
+          <div><dt>{{network.tcpTitle}}</dt><dd>{{network.tcp}} <a href="https://www.youtube.com/watch?v=pqtDUrLReI4&amp;t=267s">[04:27]</a></dd></div>
+          <div><dt>{{network.tlsTitle}}</dt><dd>{{network.tls}} <a href="https://www.youtube.com/watch?v=pqtDUrLReI4&amp;t=301s">[05:01]</a></dd></div>
+          <div><dt>{{network.httpTitle}}</dt><dd>{{network.http}} <a href="https://www.youtube.com/watch?v=pqtDUrLReI4&amp;t=355s">[05:55]</a></dd></div>
+          <div><dt>{{network.scaleTitle}}</dt><dd>{{network.scale}} <a href="https://www.youtube.com/watch?v=pqtDUrLReI4&amp;t=519s">[08:39]</a></dd></div>
+        </dl>
+      </section>
+
+      <section class="embed" id="embed" aria-labelledby="embed-title">
+        <div class="section-head">
+          <h2 id="embed-title">{{embed.title}}</h2>
+          <p>{{embed.lede}}</p>
+        </div>
+        <div class="embed-steps">
+          <div class="snippet">
+            <h3>{{embed.scriptTitle}}</h3>
+            <pre id="snippet-script"><code>&lt;form id="signup"&gt; … &lt;/form&gt;
+&lt;script type="module"
+  src="https://maxgfr.github.io/notabot/cdn/notabot.js"
+  data-form="#signup"&gt;&lt;/script&gt;</code></pre>
+            <button type="button" class="button quiet" data-copy="snippet-script">{{embed.copy}}</button>
+            <p class="hint">{{embed.scriptHint}}</p>
+          </div>
+          <div class="snippet">
+            <h3>{{embed.npmTitle}}</h3>
+            <pre id="snippet-npm"><code>npm install notabot
+
+import { check, trackBehavior } from "notabot";
+const behavior = trackBehavior();
+const result = await check({ behavior });
+result.verdict; // "human" | "unsure" | "bot"
+result.rules.flags; // what tripped, and why</code></pre>
+            <button type="button" class="button quiet" data-copy="snippet-npm">{{embed.copy}}</button>
+            <p class="hint">{{embed.npmHint}}</p>
+          </div>
+          <div class="snippet">
+            <h3>{{embed.workerTitle}}</h3>
+            <pre id="snippet-worker"><code>&lt;notabot-check
+  challenge-url="https://notabot.you.workers.dev/challenge"
+  verify-url="https://notabot.you.workers.dev/verify"&gt;
+&lt;/notabot-check&gt;
+
+POST /siteverify  secret=…&amp;response=&lt;token&gt;
+→ { "success": true, "verdict": "human", "score": 0.9 }</code></pre>
+            <button type="button" class="button quiet" data-copy="snippet-worker">{{embed.copy}}</button>
+            <p class="hint">{{embed.workerHint}} <a href="https://github.com/maxgfr/notabot/tree/main/examples/cloudflare-worker">examples/cloudflare-worker</a></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="limits" aria-labelledby="limits-title">
+        <h2 id="limits-title">{{limits.title}}</h2>
+        <ul>
+          <li>{{limits.forgeable}}</li>
+          <li>{{limits.privacy}}</li>
+          <li>{{limits.model}}</li>
+          <li>{{limits.access}}</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="colophon">
+      <p>{{footer.source}} <a href="https://www.youtube.com/watch?v=pqtDUrLReI4">{{footer.video}}</a></p>
+      <p>{{footer.license}} · <a href="https://github.com/maxgfr">maxgfr</a></p>
+    </footer>
+
+    <script type="application/json" id="i18n">{{i18n-json}}</script>
+    <script type="module" src="{{src}}scripts/main.ts"></script>
+  </body>
+</html>

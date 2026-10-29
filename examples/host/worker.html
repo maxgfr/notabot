@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>notabot with a Worker that signs</title>
+  </head>
+  <body>
+    <h1>Contact</h1>
+    <form id="contact">
+      <notabot-check challenge-url="/worker/challenge" verify-url="/worker/verify"></notabot-check>
+      <button type="submit">Send</button>
+    </form>
+    <script type="module" src="/notabot/cdn/notabot.js" data-guard="false"></script>
+  </body>
+</html>
