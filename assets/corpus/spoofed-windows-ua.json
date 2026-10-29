@@ -4,8 +4,8 @@
   "source": "Chromium, AutomationControlled off, Windows user agent on another system",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-29T14:07:42.538Z",
-    "durationMs": 178,
+    "collectedAt": "2026-10-29T23:06:01.456Z",
+    "durationMs": 181,
     "env": {
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
       "uaData": {
@@ -50,7 +50,7 @@
       "connection": {
         "effectiveType": "4g",
         "rtt": 0,
-        "downlink": 10,
+        "downlink": 9.8,
         "saveData": false
       },
       "cookieEnabled": true,
@@ -193,6 +193,9 @@
       },
       "mismatches": []
     },
+    "privacy": {
+      "opfs": "ok"
+    },
     "errors": {}
   },
   "behavior": {
@@ -205,7 +208,10 @@
     "angleEntropy": 0,
     "jitter": 0,
     "stepCv": 0,
-    "sessionMs": 179,
+    "turnRate": 0,
+    "endSlowdown": null,
+    "overshoot": null,
+    "sessionMs": 182,
     "moves": 0,
     "clicks": 0,
     "keys": 0,
@@ -217,6 +223,9 @@
     "coalescedMean": null,
     "keyDwellMean": null,
     "keyDwellCv": null,
-    "keyFlightCv": null
+    "keyFlightCv": null,
+    "scrollCv": null,
+    "pastes": 0,
+    "honeypot": 0
   }
 }

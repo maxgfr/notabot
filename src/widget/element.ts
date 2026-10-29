@@ -62,7 +62,8 @@ let sheet: CSSStyleSheet | null = null;
  * `<notabot-check>`: the checkbox, the proof-of-work behind it and, when the signals are
  * ambiguous, a slider or targets to press in order. Attributes: mode (auto | click),
  * challenge-url, verify-url, slide-url, endpoint, model, name, form, lang, theme (auto | light |
- * dark), rules-weight, challenges (slide, targets: which the page may draw).
+ * dark), rules-weight, challenges (slide, targets: which the page may draw), local (the local
+ * regression as the second opinion when there is no model), no-honeypot.
  */
 export class NotabotCheck extends Base {
   static observedAttributes = ["lang", "theme"];
@@ -156,6 +157,7 @@ export class NotabotCheck extends Base {
         behavior: sharedTracker(),
         challenge: challengeUrl || "local",
         ...(this.signals ? { signals: this.signals } : {}),
+        ...(this.hasAttribute("local") ? { local: true } : {}),
         llm,
         ...(verifyUrl ? { verifyUrl } : {}),
         ...(Number.isFinite(weight) && this.hasAttribute("rules-weight")

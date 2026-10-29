@@ -116,7 +116,9 @@
     "test:live": "playwright test -c playwright.live.config.ts",
     "test:package:published": "bun scripts/check-package.ts --published",
     "bench": "bun scripts/bench.ts",
-    "capture": "bun scripts/capture.ts"
+    "capture": "bun scripts/capture.ts",
+    "test:package:e2e": "bun run build && bun scripts/package-e2e.ts",
+    "test:package:e2e:published": "bun scripts/package-e2e.ts --published"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.91",

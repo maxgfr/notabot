@@ -70,3 +70,8 @@ jobs:
           echo "NOTABOT_VERSION=$tag" >> "$GITHUB_ENV"
       - run: bun install --frozen-lockfile
       - run: bun run test:package:published
+      - run: bunx playwright install --with-deps chromium
+      - name: The published package, installed by a consumer app, end to end
+        run: bun run test:package:e2e:published
+        env:
+          CI: "true"

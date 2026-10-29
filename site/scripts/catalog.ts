@@ -534,6 +534,8 @@ export const RULES_FR: Record<string, string> = {
     "Le pointeur avance en lignes parfaitement droites, à pas égaux ou à vitesse constante : le trajet d'un script, quoi que fasse son horloge.",
   "no-coalesced-events":
     "Les évènements de pointeur ne portent aucun échantillon brut, comme souvent les synthétiques.",
+  "pointer-no-slowdown":
+    "Les gestes du pointeur arrivent à pleine vitesse sans jamais corriger leur direction : une main ralentit et ajuste en approchant de sa cible.",
   "robotic-typing":
     "Touches enfoncées et relâchées au métronome : un script qui tape avec un délai fixe. Le rythme d'une personne varie.",
   "robotic-scroll":

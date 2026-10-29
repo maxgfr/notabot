@@ -4,8 +4,8 @@
   "source": "Chromium with a stealth layer injected at load (webdriver, plugins, chrome, brands)",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-29T14:07:46.120Z",
-    "durationMs": 75,
+    "collectedAt": "2026-10-29T23:06:05.677Z",
+    "durationMs": 59,
     "env": {
       "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
       "uaData": {
@@ -50,14 +50,14 @@
       "connection": {
         "effectiveType": "4g",
         "rtt": 0,
-        "downlink": 9.1,
+        "downlink": 9.7,
         "saveData": false
       },
       "cookieEnabled": true,
       "doNotTrack": null,
       "globalPrivacyControl": null,
       "pdfViewerEnabled": false,
-      "storageQuotaMB": 10246,
+      "storageQuotaMB": 10240,
       "codecs": {
         "h264": "probably",
         "hevc": "no",
@@ -197,19 +197,25 @@
       },
       "mismatches": ["languages"]
     },
+    "privacy": {
+      "opfs": "ok"
+    },
     "errors": {}
   },
   "behavior": {
     "samples": 27,
-    "durationMs": 425,
-    "speedMean": 3.652,
-    "speedCv": 1.859,
-    "accelCv": 4.091,
+    "durationMs": 433,
+    "speedMean": 3.671,
+    "speedCv": 1.85,
+    "accelCv": 3.996,
     "straightness": 1,
     "angleEntropy": 0.23,
     "jitter": 0,
     "stepCv": 0,
-    "sessionMs": 1030,
+    "turnRate": 0,
+    "endSlowdown": 0.435,
+    "overshoot": 0,
+    "sessionMs": 971,
     "moves": 27,
     "clicks": 1,
     "keys": 15,
@@ -220,7 +226,10 @@
     "firstInteractionMs": 1,
     "coalescedMean": 1,
     "keyDwellMean": 31,
-    "keyDwellCv": 0.018,
-    "keyFlightCv": 0.29
+    "keyDwellCv": 0.005,
+    "keyFlightCv": 0.006,
+    "scrollCv": null,
+    "pastes": 0,
+    "honeypot": 0
   }
 }

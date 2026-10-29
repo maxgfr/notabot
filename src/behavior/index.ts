@@ -53,6 +53,20 @@ export interface Trajectory {
    * the same distance each time, whatever its clock does; a hand speeds up and slows down.
    */
   stepCv: number;
+  /**
+   * Share of direction changes sharper than 30°: the small corrections of a hand steering, near 0
+   * for a path a script interpolates.
+   */
+  turnRate: number;
+  /**
+   * Speed over a stroke's last fifth against the stroke's average, averaged over strokes: a hand
+   * slows down as it reaches where it is going (well under 1), a script arrives at its usual speed
+   * (about 1, or more).
+   * Null without a stroke long enough to tell.
+   */
+  endSlowdown: number | null;
+  /** Share of strokes that pass their end point and come back to it, as a hand overshoots. */
+  overshoot: number | null;
 }
 
 export interface BehaviorFeatures extends Trajectory {
@@ -117,6 +131,9 @@ export function analyzeTrajectory(samples: PointerSample[]): Trajectory {
     angleEntropy: 0,
     jitter: 0,
     stepCv: 0,
+    turnRate: 0,
+    endSlowdown: null,
+    overshoot: null,
   };
   if (samples.length < 3) return empty;
   const speeds: number[] = [];
@@ -125,8 +142,11 @@ export function analyzeTrajectory(samples: PointerSample[]): Trajectory {
   const straight: number[] = [];
   const jitters: number[] = [];
   const steps: number[] = [];
+  const slowdowns: number[] = [];
+  const overshoots: number[] = [];
   for (const stroke of strokes(samples)) {
     let path = 0;
+    const strokeSpeeds: number[] = [];
     let prevSpeed: number | null = null;
     let prevAngle: number | null = null;
     for (let i = 1; i < stroke.length; i++) {
@@ -139,6 +159,7 @@ export function analyzeTrajectory(samples: PointerSample[]): Trajectory {
       steps.push(d);
       const speed = d / dt;
       speeds.push(speed);
+      strokeSpeeds.push(speed);
       if (prevSpeed !== null) accels.push(Math.abs(speed - prevSpeed) / dt);
       prevSpeed = speed;
       const angle = Math.atan2(b.y - a.y, b.x - a.x);
@@ -154,6 +175,17 @@ export function analyzeTrajectory(samples: PointerSample[]): Trajectory {
     const last = stroke[stroke.length - 1] as PointerSample;
     const chord = Math.hypot(last.x - first.x, last.y - first.y);
     if (path > 0) straight.push(chord / path);
+    // How the stroke arrives: does it brake, does it pass its end and come back?
+    if (strokeSpeeds.length >= 6 && chord > 20) {
+      // Against the stroke's average, not its peak: uneven steps make a peak a script reaches too.
+      const tail = strokeSpeeds.slice(-Math.max(2, Math.floor(strokeSpeeds.length / 5)));
+      const average = mean(strokeSpeeds);
+      if (average > 0) slowdowns.push(mean(tail) / average);
+      const ux = (last.x - first.x) / chord;
+      const uy = (last.y - first.y) / chord;
+      const farthest = Math.max(...stroke.map((q) => (q.x - first.x) * ux + (q.y - first.y) * uy));
+      overshoots.push(farthest > chord * 1.02 + 2 ? 1 : 0);
+    }
     // Distance of each point to the first→last line.
     if (chord > 0) {
       const dists = stroke.map(
@@ -191,6 +223,11 @@ export function analyzeTrajectory(samples: PointerSample[]): Trajectory {
     angleEntropy: round(turns.length ? entropy / 4 : 0),
     jitter: round(mean(jitters), 2),
     stepCv: round(cv(steps)),
+    turnRate: round(
+      turns.length ? turns.filter((t) => Math.abs(t) > Math.PI / 6).length / turns.length : 0,
+    ),
+    endSlowdown: slowdowns.length ? round(mean(slowdowns)) : null,
+    overshoot: overshoots.length ? round(mean(overshoots)) : null,
   };
 }
 
@@ -365,6 +402,13 @@ export function judgeSlide(
   // evenly stepped drag, but cannot make its steps uneven or its line wobble.
   const human = trajectory.stepCv > 0.2 || trajectory.jitter > 0.6;
   if (!human) return fail("robotic");
+  // A hand brakes into the zone; a scripted drag arrives at full speed, without a correction.
+  if (
+    trajectory.endSlowdown !== null &&
+    trajectory.endSlowdown > 0.85 &&
+    trajectory.turnRate < 0.02
+  )
+    return fail("robotic");
   return { passed: true, reason: "ok", trajectory };
 }
 
