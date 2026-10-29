@@ -24,8 +24,10 @@
   "include": [
     "e2e",
     "e2e-live",
+    "e2e-package/specs",
     "playwright.config.ts",
     "playwright.live.config.ts",
+    "playwright.package.config.ts",
     "scripts",
     "site",
     "src",

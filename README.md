@@ -25,17 +25,17 @@ then go to a model that scores the session, and only a doubtful one gets a test.
 
 notabot does that part in the open:
 
-| Layer                 | What it checks                                                                                                                                                                 |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Declared identity** | user agent, client hints, platform, languages, time zone, screen, cores, memory                                                                                                |
-| **Automation tells**  | `navigator.webdriver`, HeadlessChrome brands, Selenium / Playwright / Puppeteer / PhantomJS globals, plugins, `window.chrome`, notification permission quirk, zero-size window |
-| **Lies**              | native getters and functions that no longer look native (judged with a clean realm's `toString`), a redefined `webdriver`, a patched `Function.prototype.toString`             |
-| **Second opinions**   | the same questions asked from a fresh iframe and a Web Worker, which stealth layers forget                                                                                     |
-| **Consistency**       | OS named by the user agent vs platform vs client hints vs GPU, engine claimed vs `eval.toString().length`, time zone name vs clock offset, phone UA without touch              |
-| **Hardware prints**   | canvas (read twice, to spot injected noise), WebGL strings and a rendered scene, offline audio, fonts, WebGPU                                                                  |
-| **Behaviour**         | pointer speed, step and wobble, `isTrusted`, coalesced samples, key dwell and flight, fields filled without keys, paste vs typing, scroll cadence, an invisible honeypot field |
-| **Proof of work**     | SHA-256 puzzle in a Web Worker, ALTCHA-style, signed by your server when you have one                                                                                          |
-| **AI officer**        | optional: a small model reads the features and gives a verdict, blended with the rules                                                                                         |
+| Layer                 | What it checks                                                                                                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Declared identity** | user agent, client hints, platform, languages, time zone, screen, cores, memory                                                                                                            |
+| **Automation tells**  | `navigator.webdriver`, HeadlessChrome brands, Selenium / Playwright / Puppeteer / PhantomJS globals, plugins, `window.chrome`, notification permission quirk, zero-size window             |
+| **Lies**              | native getters and functions that no longer look native (judged with a clean realm's `toString`), a redefined `webdriver`, a patched `Function.prototype.toString`                         |
+| **Second opinions**   | the same questions asked from a fresh iframe and a Web Worker, which stealth layers forget                                                                                                 |
+| **Consistency**       | OS named by the user agent vs platform vs client hints vs GPU, engine claimed vs `eval.toString().length`, time zone name vs clock offset, phone UA without touch                          |
+| **Hardware prints**   | canvas (read twice, to spot injected noise), WebGL strings and a rendered scene, offline audio, fonts, WebGPU                                                                              |
+| **Behaviour**         | pointer speed, step and wobble, how it arrives (slowing down, correcting, overshooting), `isTrusted`, coalesced samples, key dwell and flight, paste vs typing, scroll cadence, a honeypot |
+| **Proof of work**     | SHA-256 puzzle in a Web Worker, ALTCHA-style, signed by your server when you have one                                                                                                      |
+| **AI officer**        | optional: a small model reads the features and gives a verdict, blended with the rules                                                                                                     |
 
 Each rule has a weight and a category. Flags of one category tend to fire together (a headless
 user agent and a headless brand are one fact told twice), so within a category the strongest
@@ -106,6 +106,7 @@ away by it. The demo shows the exact prompt before anything is sent.
 | `slide-url`                               | where the slider is judged in signed mode; default: `slide` next to `verify-url` |
 | `challenges`                              | which visible challenges the page may draw: `slide`, `targets` (default both)    |
 | `no-honeypot`                             | do not add the invisible honeypot field to the form                              |
+| `local`                                   | without a model, blend in the local regression as the second opinion             |
 | `endpoint`, `model`                       | an OpenAI-compatible proxy for the AI opinion; the key stays there               |
 | `name`                                    | hidden field carrying the token, default `notabot-token`                         |
 | `form`                                    | form selector, when the widget sits outside it                                   |
@@ -121,7 +122,9 @@ language of your own. In a form, it adds an invisible honeypot field (`<name>-hp
 order and hidden from assistive technology; `no-honeypot` to opt out): the tracker and the
 middleware both flag it when a script fills it.
 
-On the script tag, `data-form="#id"` adds a widget to that form and holds its submission until
+Every attribute works as `data-*` on the script tag too (`data-challenges="targets"`,
+`data-slide-url`, `data-local="true"`, `data-no-honeypot="true"`…). On the script tag,
+`data-form="#id"` adds a widget to that form and holds its submission until
 the check passes (`data-guard="false"` to opt out). Events: `notabot:state`, `notabot:step`,
 `notabot:verdict` (`{ verdict, bot, token, signed, challenged, result }`), `notabot:error`
 (`{ error, code }`: `expired`, `replayed`, `refused`, `rate-limited`, `malformed` or `network`).
@@ -214,7 +217,7 @@ The scores below use the correlation-capped combination described above.
 | Classifier                          | Humans passed | Humans challenged | Humans refused | Bots refused | Bots challenged | Bots passed |
 | ----------------------------------- | ------------- | ----------------- | -------------- | ------------ | --------------- | ----------- |
 | Rules alone                         | 9/9           | 0                 | 0              | 7/8          | 1               | 0           |
-| Logistic regression (leave-one-out) | 9/9           | 0                 | 0              | 6/8          | 0               | 2           |
+| Logistic regression (leave-one-out) | 9/9           | 0                 | 0              | 5/8          | 1               | 2           |
 | Model alone (claude-haiku-5-5)      | 9/9           | 0                 | 0              | 8/8          | 0               | 0           |
 | Rules + model (claude-haiku-5-5)    | 9/9           | 0                 | 0              | 7/8          | 1               | 0           |
 
@@ -222,23 +225,23 @@ The scores below use the correlation-capped combination described above.
 
 | Sample                                | Label | Rules | Regression | Model alone | Rules + model |
 | ------------------------------------- | ----- | ----- | ---------- | ----------- | ------------- |
-| chrome-mac                            | human | 0.00  | 0.08       | 0.05        | 0.00          |
-| keyboard-only                         | human | 0.00  | 0.08       | 0.05        | 0.00          |
-| screen-reader                         | human | 0.00  | 0.08       | 0.05        | 0.00          |
-| privacy-extension                     | human | 0.28  | 0.06       | 0.10        | 0.21          |
-| brave                                 | human | 0.00  | 0.06       | 0.05        | 0.00          |
-| safari                                | human | 0.00  | 0.08       | 0.05        | 0.00          |
-| firefox-rfp                           | human | 0.10  | 0.03       | 0.09        | 0.10          |
-| android-chrome                        | human | 0.00  | 0.17       | 0.14        | 0.00          |
-| brave-automated                       | bot   | 0.95  | 0.24       | 0.95        | 0.95          |
-| chrome-automated                      | bot   | 0.98  | 0.96       | 0.98        | 0.98          |
-| chrome-headed-hidden                  | bot   | 0.65  | 0.11       | 0.90        | 0.75          |
-| headless-new                          | bot   | 0.98  | 0.96       | 0.98        | 0.98          |
+| chrome-mac                            | human | 0.00  | 0.07       | 0.05        | 0.00          |
+| keyboard-only                         | human | 0.00  | 0.07       | 0.08        | 0.00          |
+| screen-reader                         | human | 0.00  | 0.07       | 0.08        | 0.00          |
+| privacy-extension                     | human | 0.28  | 0.05       | 0.10        | 0.21          |
+| brave                                 | human | 0.00  | 0.05       | 0.05        | 0.00          |
+| safari                                | human | 0.00  | 0.07       | 0.05        | 0.00          |
+| firefox-rfp                           | human | 0.10  | 0.03       | 0.10        | 0.10          |
+| android-chrome                        | human | 0.00  | 0.14       | 0.10        | 0.00          |
+| brave-automated                       | bot   | 0.95  | 0.15       | 0.90        | 0.95          |
+| chrome-automated                      | bot   | 0.99  | 0.97       | 0.98        | 0.99          |
+| chrome-headed-hidden                  | bot   | 0.69  | 0.22       | 0.90        | 0.77          |
+| headless-new                          | bot   | 0.99  | 0.99       | 0.98        | 0.99          |
 | headless-shell                        | bot   | 0.99  | 1.00       | 0.99        | 0.99          |
-| human-brave-156-on-macos-real-profile | human | 0.00  | 0.25       | 0.10        | 0.00          |
-| spoofed-windows-ua                    | bot   | 0.98  | 0.83       | 0.97        | 0.98          |
-| stealth-js-layer                      | bot   | 1.00  | 0.91       | 0.98        | 1.00          |
-| stealth-linux-ua                      | bot   | 0.99  | 0.98       | 0.98        | 0.99          |
+| human-brave-156-on-macos-real-profile | human | 0.00  | 0.24       | 0.10        | 0.00          |
+| spoofed-windows-ua                    | bot   | 0.98  | 0.75       | 0.97        | 0.98          |
+| stealth-js-layer                      | bot   | 1.00  | 0.95       | 0.98        | 1.00          |
+| stealth-linux-ua                      | bot   | 0.99  | 0.99       | 0.97        | 0.99          |
 <!-- bench:end -->
 
 Read it for what it is. The hardest sample, a headed Chrome with `AutomationControlled` off
@@ -251,7 +254,8 @@ The real Brave (farbled canvas, audio and core count, its own WebGL renderer nam
 rule. An AI agent driving that same Brave through a browser extension is called human too: the
 slider refused its straight drag, and the targets now refuse clicks that jump onto each target.
 The regression, trained on so few samples, is weaker than the rules it learned from; it ships as
-`classifyLocal()`, a free, deterministic second opinion (`check({ local: true })`, and the demo's
+`classifyLocal()`, a free, deterministic second opinion (`check({ local: true })`, the widget's
+`local` attribute, `createNotabot({ local: true })` on the server, and the demo's
 report), never as the decision.
 
 ## Smart signals, in-house
@@ -360,8 +364,9 @@ share an IP: tune the thresholds to your traffic before relying on them.
 ratePerMinute: 60 } } }`, a request signed per [HTTP Message Signatures](https://www.rfc-editor.org/rfc/rfc9421)
 (Ed25519, `Signature`, `Signature-Input`, `Signature-Agent`, tag `web-bot-auth`) is checked
 against the key its operator publishes at `/.well-known/http-message-signatures-directory`. A
-valid one passes as `verified-agent` (`decision.verifiedAgent.operator`), the hosting and
-HTTP-library rules set aside; an operator not listed is refused (`agent-not-allowed`), as is a
+valid one passes as `verified-agent` (`decision.verifiedAgent.operator`), the request-shape
+rules set aside (missing browser headers, an HTTP library, a hosting network: an agent that
+signs is not passing for a browser); an operator not listed is refused (`agent-not-allowed`), as is a
 bad or stale signature. Directories are fetched only for listed operators, over https, never an
 IP literal or a local name, without redirects, within 3 s and 64 KB, cached for an hour.
 
@@ -475,6 +480,17 @@ server would add" lists every rule only the middleware runs, tried on the header
 know about your browser. The full report (verdict, flags, features, the exact prompt, the model's
 answer, the local regression's opinion, signals and behaviour) downloads as JSON. The 850 KB
 provider catalog is served by the site only; it is not in the npm package.
+
+## Testing the package as a site installs it
+
+`bun run test:package:e2e` packs notabot, installs the tarball with Express and Hono in a scratch
+project, and runs a consumer app that imports nothing but `notabot` (`e2e-package/consumer`):
+Node checks for what has no browser part (stores, request analysis, HTTP/2 SETTINGS, sealed
+signals and siteverify, Tor, VPN, the local second opinion, Web Bot Auth), then Chromium against
+the app (the one-line embed and its `data-*`, the element's attributes and languages, the signed
+slider and targets, siteverify, a typed `expired` error, Hono and `protect()`). CI runs it on
+every pull request; the production checks run it on the version on npm
+(`test:package:e2e:published`).
 
 ## Development
 

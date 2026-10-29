@@ -4,8 +4,8 @@
   "source": "Installed Google Chrome, driven by Playwright (headless)",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-29T14:07:44.127Z",
-    "durationMs": 31,
+    "collectedAt": "2026-10-29T23:06:03.139Z",
+    "durationMs": 41,
     "env": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
       "uaData": {
@@ -18,8 +18,8 @@
         "model": "",
         "fullVersionList": [
           "Not:A-Brand 8.0.0.0",
-          "Chromium 156.0.8078.74",
-          "Google Chrome 156.0.8078.74"
+          "Chromium 156.0.8078.76",
+          "Google Chrome 156.0.8078.76"
         ]
       },
       "platform": "MacIntel",
@@ -49,15 +49,15 @@
       "maxTouchPoints": 0,
       "connection": {
         "effectiveType": "4g",
-        "rtt": 100,
-        "downlink": 1.5,
+        "rtt": 0,
+        "downlink": 1.65,
         "saveData": false
       },
       "cookieEnabled": true,
       "doNotTrack": null,
       "globalPrivacyControl": null,
       "pdfViewerEnabled": true,
-      "storageQuotaMB": 10246,
+      "storageQuotaMB": 10240,
       "codecs": {
         "h264": "probably",
         "hevc": "probably",
@@ -196,19 +196,25 @@
       },
       "mismatches": []
     },
+    "privacy": {
+      "opfs": "ok"
+    },
     "errors": {}
   },
   "behavior": {
     "samples": 27,
-    "durationMs": 410,
-    "speedMean": 2.809,
-    "speedCv": 1.752,
-    "accelCv": 4.392,
+    "durationMs": 424,
+    "speedMean": 2.662,
+    "speedCv": 1.843,
+    "accelCv": 4.422,
     "straightness": 1,
     "angleEntropy": 0.23,
     "jitter": 0,
     "stepCv": 0,
-    "sessionMs": 995,
+    "turnRate": 0,
+    "endSlowdown": 0.607,
+    "overshoot": 0,
+    "sessionMs": 955,
     "moves": 27,
     "clicks": 1,
     "keys": 15,
@@ -216,10 +222,13 @@
     "untrusted": 0,
     "inputWithoutKeys": 0,
     "focusChanges": 0,
-    "firstInteractionMs": 6,
+    "firstInteractionMs": 11,
     "coalescedMean": 1,
-    "keyDwellMean": 35,
-    "keyDwellCv": 0.359,
-    "keyFlightCv": 0.372
+    "keyDwellMean": 32,
+    "keyDwellCv": 0.009,
+    "keyFlightCv": 0.009,
+    "scrollCv": null,
+    "pastes": 0,
+    "honeypot": 0
   }
 }

@@ -349,6 +349,21 @@ export const RULES: Rule[] = [
         : null,
   },
   {
+    id: "pointer-no-slowdown",
+    category: "behavior",
+    weight: 0.4,
+    explain:
+      "Pointer strokes arrive at full speed and never correct their direction: a hand slows down and steers as it reaches its target.",
+    test: ({ behavior }) =>
+      behavior &&
+      behavior.moves >= 20 &&
+      behavior.endSlowdown !== null &&
+      behavior.endSlowdown > 0.85 &&
+      behavior.turnRate < 0.02
+        ? `end speed ${behavior.endSlowdown} of peak, turn rate ${behavior.turnRate}`
+        : null,
+  },
+  {
     id: "robotic-typing",
     category: "behavior",
     weight: 0.5,

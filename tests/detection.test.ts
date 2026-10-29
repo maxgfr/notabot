@@ -276,6 +276,15 @@ describe("Web Bot Auth", () => {
       agents: { allow: { [OPERATOR]: {} }, fetch: directory as typeof fetch },
     });
     const decision = await nb.verifyRequest(infoFromRequest(await signed("/api")));
+    // An agent sends no browser headers: the request-shape rules do not count against it.
+    const bare = await signed("/api");
+    const headers = new Headers(bare.headers);
+    headers.delete("accept");
+    headers.delete("accept-language");
+    const bareDecision = await nb.verifyRequest(
+      infoFromRequest(new Request(bare.url, { headers })),
+    );
+    expect(bareDecision).toMatchObject({ ok: true, reason: "verified-agent" });
     expect(decision).toMatchObject({
       ok: true,
       reason: "verified-agent",

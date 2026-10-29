@@ -4,8 +4,8 @@
   "source": "Chromium, AutomationControlled off, Linux user agent",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-29T14:07:42.180Z",
-    "durationMs": 73,
+    "collectedAt": "2026-10-29T23:06:01.087Z",
+    "durationMs": 75,
     "env": {
       "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
       "uaData": {
@@ -50,14 +50,14 @@
       "connection": {
         "effectiveType": "4g",
         "rtt": 0,
-        "downlink": 10,
+        "downlink": 9,
         "saveData": false
       },
       "cookieEnabled": true,
       "doNotTrack": null,
       "globalPrivacyControl": null,
       "pdfViewerEnabled": false,
-      "storageQuotaMB": 10246,
+      "storageQuotaMB": 10240,
       "codecs": {
         "h264": "probably",
         "hevc": "no",
@@ -193,19 +193,25 @@
       },
       "mismatches": []
     },
+    "privacy": {
+      "opfs": "ok"
+    },
     "errors": {}
   },
   "behavior": {
     "samples": 27,
-    "durationMs": 423,
-    "speedMean": 2.864,
-    "speedCv": 1.723,
-    "accelCv": 3.81,
+    "durationMs": 422,
+    "speedMean": 2.401,
+    "speedCv": 1.036,
+    "accelCv": 2.319,
     "straightness": 1,
     "angleEntropy": 0.23,
     "jitter": 0,
     "stepCv": 0,
-    "sessionMs": 1046,
+    "turnRate": 0,
+    "endSlowdown": 0.661,
+    "overshoot": 0,
+    "sessionMs": 988,
     "moves": 27,
     "clicks": 1,
     "keys": 15,
@@ -213,10 +219,13 @@
     "untrusted": 0,
     "inputWithoutKeys": 0,
     "focusChanges": 0,
-    "firstInteractionMs": 1,
+    "firstInteractionMs": 3,
     "coalescedMean": 1,
     "keyDwellMean": 31,
-    "keyDwellCv": 0.018,
-    "keyFlightCv": 0.347
+    "keyDwellCv": 0.009,
+    "keyFlightCv": 0.008,
+    "scrollCv": null,
+    "pastes": 0,
+    "honeypot": 0
   }
 }

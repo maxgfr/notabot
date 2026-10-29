@@ -4,8 +4,8 @@
   "source": "Playwright Chromium, headless shell",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-29T14:07:39.235Z",
-    "durationMs": 177,
+    "collectedAt": "2026-10-29T23:05:57.902Z",
+    "durationMs": 210,
     "env": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
       "uaData": {
@@ -193,6 +193,9 @@
       },
       "mismatches": []
     },
+    "privacy": {
+      "opfs": "ok"
+    },
     "errors": {}
   },
   "behavior": {
@@ -205,7 +208,10 @@
     "angleEntropy": 0,
     "jitter": 0,
     "stepCv": 0,
-    "sessionMs": 178,
+    "turnRate": 0,
+    "endSlowdown": null,
+    "overshoot": null,
+    "sessionMs": 211,
     "moves": 0,
     "clicks": 0,
     "keys": 0,
@@ -217,6 +223,9 @@
     "coalescedMean": null,
     "keyDwellMean": null,
     "keyDwellCv": null,
-    "keyFlightCv": null
+    "keyFlightCv": null,
+    "scrollCv": null,
+    "pastes": 0,
+    "honeypot": 0
   }
 }

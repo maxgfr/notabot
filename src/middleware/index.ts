@@ -11,6 +11,7 @@ import {
   randomTargets,
   type TargetClick,
 } from "../behavior/index";
+import { classifyLocal } from "../llm/local";
 // The prompt module only: the server builds the same prompt without bundling the AI stack.
 import {
   botProbabilityOf,
@@ -120,6 +121,11 @@ export interface NotabotServerOptions {
    * 429. Off by default.
    */
   ratePerMinute?: number;
+  /**
+   * Blend in the local regression (`classifyLocal`, from notabot/llm) as the second opinion when
+   * no model is configured or it did not answer: free, deterministic, no key. Default false.
+   */
+  local?: boolean;
   /**
    * Tor exit node addresses (a set, or a loader such as `torExitList()`): a request from one is
    * flagged `tor-exit` (weak: many Tor users are people) and `smart.tor` is set.
@@ -488,8 +494,11 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     const limit = policyFor(policy, agent.operator)?.ratePerMinute;
     if (limit && (await countIn(store, `agent:${agent.operator}:${minute()}`, 120, limit)) > limit)
       return refuse("agent-rate", flags);
-    // Agents run on servers and speak HTTP from libraries: those two rules say nothing here.
-    const kept = flags.filter((f) => f.id !== "hosting-network" && f.id !== "http-library");
+    // A signed agent says it is an agent: the rules that catch a script passing for a browser
+    // (missing browser headers, an HTTP library, a hosting network…) say nothing here. Its own
+    // operator's rate, and any flag outside the request's shape, still count.
+    const shape = new Set(rules.map((r) => r.id));
+    const kept = flags.filter((f) => !shape.has(f.id));
     const bot = combineFlags(kept);
     const verdict = verdictOf(bot);
     const ok = accept.includes(verdict);
@@ -866,16 +875,19 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     const tor = await isTorExit(info.ip);
     if (tor) flags.push(crossCheck("tor-exit", info.ip ?? ""));
     const rulesBot = combineFlags(flags);
-    const modelBot = rulesDecided(rulesBot)
-      ? null
-      : await askModel(
-          toFeatures(
-            body.signals,
-            { ...scored, bot: rulesBot, flags },
-            behavior,
-            serverFeatures(info, body.signals),
-          ),
-        );
+    const features = toFeatures(
+      body.signals,
+      { ...scored, bot: rulesBot, flags },
+      behavior,
+      serverFeatures(info, body.signals),
+    );
+    const askedModel = rulesDecided(rulesBot) ? null : await askModel(features);
+    // With `local`, the regression stands in when there is no model or it did not answer.
+    const localBot =
+      askedModel === null && options.local && !rulesDecided(rulesBot)
+        ? classifyLocal(features).bot
+        : null;
+    const modelBot = askedModel ?? localBot;
     const bot = Math.round(blend(rulesBot, modelBot) * 1000) / 1000;
     const verdict = verdictOf(bot);
     // The visible challenge, chosen and signed here so the page cannot pick it: a slider and
@@ -902,7 +914,8 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
         ...(visible ? { challenge: visible } : {}),
         ...(visible?.kind === "slide" ? { zone: visible.zone } : {}),
         flags: flags.map((f) => f.id),
-        model: modelBot !== null,
+        model: askedModel !== null,
+        secondOpinion: askedModel !== null ? "model" : localBot !== null ? "local" : null,
       },
     };
   }

@@ -4,8 +4,8 @@
   "source": "Installed Brave, driven by Playwright (headless)",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-29T14:07:44.764Z",
-    "durationMs": 143,
+    "collectedAt": "2026-10-29T23:06:04.328Z",
+    "durationMs": 422,
     "env": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
       "uaData": {
@@ -37,10 +37,10 @@
       "window": {
         "innerWidth": 1280,
         "innerHeight": 720,
-        "outerWidth": 1285,
-        "outerHeight": 722
+        "outerWidth": 1286,
+        "outerHeight": 723
       },
-      "hardwareConcurrency": 5,
+      "hardwareConcurrency": 6,
       "deviceMemory": 8,
       "maxTouchPoints": 0,
       "connection": null,
@@ -155,7 +155,7 @@
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
       "platform": "MacIntel",
       "languages": ["fr-FR"],
-      "hardwareConcurrency": 5,
+      "hardwareConcurrency": 6,
       "deviceMemory": 8,
       "webdriver": false,
       "timezone": "Europe/Paris",
@@ -166,7 +166,7 @@
         "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
         "platform": "MacIntel",
         "languages": ["fr-FR"],
-        "hardwareConcurrency": 5,
+        "hardwareConcurrency": 6,
         "deviceMemory": 8,
         "webdriver": false,
         "timezone": "Europe/Paris",
@@ -179,13 +179,16 @@
         "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
         "platform": "MacIntel",
         "languages": ["fr-FR"],
-        "hardwareConcurrency": 5,
+        "hardwareConcurrency": 6,
         "deviceMemory": 8,
         "webdriver": null,
         "timezone": "Europe/Paris",
         "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
       },
       "mismatches": []
+    },
+    "privacy": {
+      "opfs": "ok"
     },
     "errors": {}
   },
@@ -199,7 +202,10 @@
     "angleEntropy": 0,
     "jitter": 0,
     "stepCv": 0,
-    "sessionMs": 144,
+    "turnRate": 0,
+    "endSlowdown": null,
+    "overshoot": null,
+    "sessionMs": 423,
     "moves": 0,
     "clicks": 0,
     "keys": 0,
@@ -211,6 +217,9 @@
     "coalescedMean": null,
     "keyDwellMean": null,
     "keyDwellCv": null,
-    "keyFlightCv": null
+    "keyFlightCv": null,
+    "scrollCv": null,
+    "pastes": 0,
+    "honeypot": 0
   }
 }

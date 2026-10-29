@@ -11,6 +11,10 @@ export const FORWARDED = [
   "theme",
   "name",
   "rulesWeight",
+  "slideUrl",
+  "challenges",
+  "local",
+  "noHoneypot",
 ] as const;
 
 const kebab = (s: string) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);

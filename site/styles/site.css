@@ -768,9 +768,15 @@ main > section:not(.border)::before {
 .rule-head code {
   font-size: 0.86rem;
 }
+/* A status, not a control: small capitals, no pointer, nothing that invites a click. */
 .rule-state {
   color: var(--ink-2);
   white-space: nowrap;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: default;
+  user-select: none;
 }
 .rule-explain {
   font-size: 0.9rem;
