@@ -130,7 +130,7 @@
     "@playwright/test": "^1.64.1",
     "@semantic-release/exec": "^7.1.0",
     "@types/bun": "^1.4.4",
-    "conventional-changelog-conventionalcommits": "^9",
+    "conventional-changelog-conventionalcommits": "^10",
     "semantic-release": "^25.0.9",
     "typescript": "^7.0.2"
   }
