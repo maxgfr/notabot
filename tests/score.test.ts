@@ -234,3 +234,29 @@ describe("values a fingerprint generator gets wrong", () => {
     expect(ids(score({ signals: s }))).toEqual([]);
   });
 });
+
+describe("what a patch cannot rename", () => {
+  const webgl = (s: ReturnType<typeof realChrome>) =>
+    s.hardware.webgl as NonNullable<typeof s.hardware.webgl>;
+
+  test("a graphics card's name on a software rasterizer's speed", () => {
+    const s = realChrome();
+    webgl(s).renderMs = 70;
+    const result = score({ signals: s });
+    expect(ids(result)).toEqual(["software-speed-gpu-name"]);
+    // Weak alone: a slow card never gets the extra step from it.
+    expect(result.verdict).toBe("human");
+    webgl(s).renderMs = 0.7;
+    expect(ids(score({ signals: s }))).toEqual([]);
+  });
+
+  test("a renderer that already names itself software, or a phone, is not counted twice", () => {
+    const s = headlessChromium();
+    webgl(s).renderMs = 70;
+    expect(ids(score({ signals: s }))).not.toContain("software-speed-gpu-name");
+    const phone = realChrome();
+    phone.env.userAgent = `${phone.env.userAgent.replace("(Macintosh;", "(Linux; Android 14;")} Mobile`;
+    webgl(phone).renderMs = 120;
+    expect(ids(score({ signals: phone }))).not.toContain("software-speed-gpu-name");
+  });
+});

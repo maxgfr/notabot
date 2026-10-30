@@ -4,8 +4,8 @@
   "source": "Playwright Chromium, headless shell",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-30T15:14:51.254Z",
-    "durationMs": 981,
+    "collectedAt": "2026-10-30T15:40:07.189Z",
+    "durationMs": 385,
     "env": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
       "uaData": {
@@ -50,7 +50,7 @@
       "connection": {
         "effectiveType": "4g",
         "rtt": 0,
-        "downlink": 10,
+        "downlink": 9,
         "saveData": false
       },
       "cookieEnabled": true,
@@ -79,7 +79,11 @@
         "hdr": false,
         "p3": false
       },
-      "mediaDevices": null,
+      "mediaDevices": {
+        "audioinput": 1,
+        "audiooutput": 1,
+        "videoinput": 1
+      },
       "permissions": {
         "notifications": "prompt",
         "geolocation": "prompt",
@@ -111,7 +115,8 @@
         "shadingLanguage": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
         "maxTextureSize": 8192,
         "extensions": 35,
-        "sceneHash": "redacted"
+        "sceneHash": "redacted",
+        "renderMs": 20.6
       },
       "webgpu": null,
       "audio": {
@@ -219,7 +224,7 @@
     "endSlowdown": null,
     "overshoot": null,
     "tremor": null,
-    "sessionMs": 982,
+    "sessionMs": 385,
     "moves": 0,
     "clicks": 0,
     "keys": 0,

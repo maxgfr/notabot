@@ -90,6 +90,8 @@ export interface WebGLInfo {
   extensions: number;
   /** Hash of a rendered scene: drivers differ in their pixels even when they lie in their strings. */
   sceneHash: string | null;
+  /** Milliseconds a costly shader takes (see `renderMs`): a GPU's speed, whatever its name. */
+  renderMs?: number | null;
 }
 
 export interface HardwareSignals {

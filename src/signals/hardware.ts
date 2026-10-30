@@ -44,7 +44,8 @@ export function collectCanvas(): HardwareSignals["canvas"] {
   return { hash: fnv1a(a), stable: a === b };
 }
 
-function sceneHash(gl: WebGLRenderingContext): string | null {
+/** Compiles `fragment` over a full-canvas quad and makes it the current program. */
+function useQuad(gl: WebGLRenderingContext, fragment: string): WebGLProgram | null {
   const vs = gl.createShader(gl.VERTEX_SHADER);
   const fs = gl.createShader(gl.FRAGMENT_SHADER);
   const program = gl.createProgram();
@@ -53,10 +54,7 @@ function sceneHash(gl: WebGLRenderingContext): string | null {
     vs,
     "attribute vec2 p;varying vec2 v;void main(){v=p;gl_Position=vec4(p,0.,1.);}",
   );
-  gl.shaderSource(
-    fs,
-    "precision mediump float;varying vec2 v;void main(){gl_FragColor=vec4(sin(v.x*9.7)*.5+.5,cos(v.y*7.3)*.5+.5,fract(v.x*v.y*13.1),1.);}",
-  );
+  gl.shaderSource(fs, fragment);
   gl.compileShader(vs);
   gl.compileShader(fs);
   gl.attachShader(program, vs);
@@ -69,10 +67,49 @@ function sceneHash(gl: WebGLRenderingContext): string | null {
   const loc = gl.getAttribLocation(program, "p");
   gl.enableVertexAttribArray(loc);
   gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  return program;
+}
+
+function sceneHash(gl: WebGLRenderingContext): string | null {
+  const program = useQuad(
+    gl,
+    "precision mediump float;varying vec2 v;void main(){gl_FragColor=vec4(sin(v.x*9.7)*.5+.5,cos(v.y*7.3)*.5+.5,fract(v.x*v.y*13.1),1.);}",
+  );
+  if (!program) return null;
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   const pixels = new Uint8Array(64 * 64 * 4);
   gl.readPixels(0, 0, 64, 64, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
   return fnv1a(pixels);
+}
+
+/**
+ * Milliseconds to draw a costly shader 20 times on 128×128 pixels, read back to wait for the GPU.
+ * A graphics card takes about one; a software rasterizer, whatever name WebGL gives it, tens.
+ */
+export function renderMs(): number | null {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const gl = canvas.getContext("webgl") as WebGLRenderingContext | null;
+  const program =
+    gl &&
+    useQuad(
+      gl,
+      "precision highp float;varying vec2 v;uniform float k;void main(){float a=v.x*k;for(int i=0;i<200;i++){a=sin(a)*cos(a+v.y)+fract(a*1.37);}gl_FragColor=vec4(a,a*.5,1.-a,1.);}",
+    );
+  if (!gl || !program) return null;
+  const k = gl.getUniformLocation(program, "k");
+  const pixel = new Uint8Array(4);
+  // A first draw compiles the shader for real: it is not timed.
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+  const started = performance.now();
+  for (let i = 0; i < 20; i++) {
+    gl.uniform1f(k, i);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+  return Math.round((performance.now() - started) * 10) / 10;
 }
 
 function webglCanvas(): { canvas: HTMLCanvasElement; gl: WebGLRenderingContext } | null {
@@ -107,6 +144,7 @@ export function collectWebGL(): WebGLInfo | null {
     maxTextureSize: Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)),
     extensions: gl.getSupportedExtensions()?.length ?? 0,
     sceneHash: sceneHash(gl),
+    renderMs: renderMs(),
   };
 }
 

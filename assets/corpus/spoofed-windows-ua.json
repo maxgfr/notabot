@@ -4,8 +4,8 @@
   "source": "Chromium, AutomationControlled off, Windows user agent on another system",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-30T15:14:54.865Z",
-    "durationMs": 201,
+    "collectedAt": "2026-10-30T15:40:11.074Z",
+    "durationMs": 295,
     "env": {
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
       "uaData": {
@@ -50,7 +50,7 @@
       "connection": {
         "effectiveType": "4g",
         "rtt": 0,
-        "downlink": 9.7,
+        "downlink": 10,
         "saveData": false
       },
       "cookieEnabled": true,
@@ -115,7 +115,8 @@
         "shadingLanguage": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
         "maxTextureSize": 8192,
         "extensions": 35,
-        "sceneHash": "redacted"
+        "sceneHash": "redacted",
+        "renderMs": 18.2
       },
       "webgpu": null,
       "audio": {
@@ -223,7 +224,7 @@
     "endSlowdown": null,
     "overshoot": null,
     "tremor": null,
-    "sessionMs": 201,
+    "sessionMs": 295,
     "moves": 0,
     "clicks": 0,
     "keys": 0,
