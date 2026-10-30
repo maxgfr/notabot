@@ -1,0 +1,231 @@
+{
+  "id": "patchright-headed",
+  "label": "bot",
+  "source": "Patchright (Playwright patched against its CDP leaks), Chromium, headed",
+  "signals": {
+    "version": 1,
+    "collectedAt": "2026-10-30T15:03:55.026Z",
+    "durationMs": 45,
+    "env": {
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "uaData": {
+        "brands": ["Not:A-Brand 8", "Chromium 156"],
+        "mobile": false,
+        "platform": "macOS",
+        "platformVersion": "27.2.0",
+        "architecture": "arm",
+        "bitness": "64",
+        "model": "",
+        "fullVersionList": ["Not:A-Brand 8.0.0.0", "Chromium 156.0.8078.4"]
+      },
+      "platform": "MacIntel",
+      "vendor": "Google Inc.",
+      "language": "fr-FR",
+      "languages": ["fr-FR", "fr", "en-US", "en"],
+      "timezone": "Europe/Paris",
+      "timezoneOffset": -60,
+      "timezoneOffsetFromName": -60,
+      "intlLocale": "fr",
+      "screen": {
+        "width": 1280,
+        "height": 720,
+        "availWidth": 1280,
+        "availHeight": 720,
+        "colorDepth": 30,
+        "pixelRatio": 1
+      },
+      "window": {
+        "innerWidth": 1280,
+        "innerHeight": 720,
+        "outerWidth": 1282,
+        "outerHeight": 800
+      },
+      "hardwareConcurrency": 10,
+      "deviceMemory": 16,
+      "maxTouchPoints": 0,
+      "connection": {
+        "effectiveType": "4g",
+        "rtt": 100,
+        "downlink": 1.45,
+        "saveData": false
+      },
+      "cookieEnabled": true,
+      "doNotTrack": null,
+      "globalPrivacyControl": null,
+      "pdfViewerEnabled": true,
+      "storageQuotaMB": 10240,
+      "codecs": {
+        "h264": "probably",
+        "hevc": "probably",
+        "vp9": "probably",
+        "av1": "probably",
+        "theora": "no",
+        "aac": "probably",
+        "opus": "probably",
+        "flac": "probably",
+        "mp3": "probably"
+      },
+      "mediaQueries": {
+        "darkScheme": false,
+        "reducedMotion": false,
+        "moreContrast": false,
+        "forcedColors": false,
+        "hoverNone": false,
+        "pointerCoarse": false,
+        "hdr": false,
+        "p3": false
+      },
+      "mediaDevices": {
+        "audioinput": 1,
+        "audiooutput": 1,
+        "videoinput": 1
+      },
+      "permissions": {
+        "notifications": "prompt",
+        "geolocation": "prompt",
+        "camera": "prompt",
+        "microphone": "prompt",
+        "persistent-storage": "prompt"
+      },
+      "evalLength": 33,
+      "errorFingerprint": "Cannot read properties of null (reading 'x')"
+    },
+    "hardware": {
+      "canvas": {
+        "hash": "redacted",
+        "stable": true
+      },
+      "webgl": {
+        "version": "WebGL 1.0 (OpenGL ES 2.0 Chromium)",
+        "vendor": "WebKit",
+        "renderer": "WebKit WebGL",
+        "unmaskedVendor": "Google Inc. (Apple)",
+        "unmaskedRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+        "shadingLanguage": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
+        "maxTextureSize": 16384,
+        "extensions": 39,
+        "sceneHash": "redacted"
+      },
+      "webgpu": {
+        "vendor": "apple",
+        "architecture": "metal-3"
+      },
+      "audio": {
+        "hash": "redacted",
+        "sum": 0
+      },
+      "fonts": [
+        "font-1",
+        "font-2",
+        "font-3",
+        "font-4",
+        "font-5",
+        "font-6",
+        "font-7",
+        "font-8",
+        "font-9",
+        "font-10",
+        "font-11",
+        "font-12",
+        "font-13",
+        "font-14",
+        "font-15",
+        "font-16",
+        "font-17"
+      ]
+    },
+    "automation": {
+      "webdriver": false,
+      "webdriverOwnProperty": false,
+      "headlessUserAgent": false,
+      "headlessBrand": false,
+      "chromeObjectMissing": false,
+      "plugins": 5,
+      "mimeTypes": 2,
+      "pluginsGenuine": true,
+      "notificationPermissionMismatch": false,
+      "automationGlobals": [],
+      "outerSizeZero": false,
+      "emptyLanguages": false,
+      "softwareRenderer": false,
+      "engineClaimed": "blink",
+      "engineObserved": "blink"
+    },
+    "tampering": {
+      "lies": [],
+      "checked": 26,
+      "toStringPatched": false
+    },
+    "page": {
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "platform": "MacIntel",
+      "languages": ["fr-FR", "fr", "en-US", "en"],
+      "hardwareConcurrency": 10,
+      "deviceMemory": 16,
+      "webdriver": false,
+      "timezone": "Europe/Paris",
+      "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+    },
+    "iframe": {
+      "snapshot": {
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "platform": "MacIntel",
+        "languages": ["fr-FR", "fr", "en-US", "en"],
+        "hardwareConcurrency": 10,
+        "deviceMemory": 16,
+        "webdriver": false,
+        "timezone": "Europe/Paris",
+        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "mismatches": []
+    },
+    "worker": {
+      "snapshot": {
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "platform": "MacIntel",
+        "languages": ["fr-FR", "fr", "en-US", "en"],
+        "hardwareConcurrency": 10,
+        "deviceMemory": 16,
+        "webdriver": null,
+        "timezone": "Europe/Paris",
+        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "mismatches": []
+    },
+    "privacy": {
+      "opfs": "ok"
+    },
+    "errors": {}
+  },
+  "behavior": {
+    "samples": 29,
+    "durationMs": 216,
+    "speedMean": 16.283,
+    "speedCv": 2.032,
+    "accelCv": 2.593,
+    "straightness": 0.087,
+    "angleEntropy": 0.362,
+    "jitter": 192.63,
+    "stepCv": 2.232,
+    "turnRate": 0.115,
+    "endSlowdown": 0.198,
+    "overshoot": 1,
+    "tremor": 142.83,
+    "sessionMs": 744,
+    "moves": 29,
+    "clicks": 1,
+    "keys": 15,
+    "scrolls": 0,
+    "untrusted": 0,
+    "inputWithoutKeys": 0,
+    "focusChanges": 0,
+    "firstInteractionMs": 3,
+    "coalescedMean": 1.03,
+    "keyDwellMean": 31,
+    "keyDwellCv": 0.008,
+    "keyFlightCv": 0.01,
+    "scrollCv": null,
+    "pastes": 0,
+    "honeypot": 0
+  }
+}

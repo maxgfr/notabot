@@ -81,7 +81,8 @@ headed Chrome with its automation flags hidden passes every check here.
 
 **False positives are tested.** `tests/profiles.test.ts` runs the rules on people whose readings
 look odd for good reasons (keyboard only, a screen reader without a pointer, a canvas-blocking
-extension, Brave, Safari, Firefox with `resistFingerprinting`, an Android phone): CI fails if any
+extension, Brave, Safari, Firefox on a Mac, on Linux, with `resistFingerprinting` and with
+Enhanced Tracking Protection on strict, Chrome on Windows, an Android phone): CI fails if any
 of them is called a bot, with or without its behaviour.
 
 ## The model never reads text the browser wrote
@@ -203,53 +204,63 @@ the same features (trained in TypeScript, no dependency, scored by leave-one-out
 sample it saw), and, with `NOTABOT_LLM_ENDPOINT` / `NOTABOT_LLM_API_KEY` / `NOTABOT_LLM_MODEL`
 set, the rules blended with a model. The corpus is small and is not real traffic: human profiles
 written from documented setups (`tests/profiles.ts`: keyboard only, screen reader, privacy
-extension, Brave, Safari, Firefox `resistFingerprinting`, Android), and automated browsers
-captured by `bun run capture` (Playwright driving Chromium, installed Chrome and Brave, with and
-without a stealth layer). Add your own browsers from the demo's download button:
-`bun run bench --add notabot-signals.json --label human --source "Firefox on Linux"`. The model
-columns below come from `claude-haiku-5-5` through Anthropic's OpenAI-compatible API, asked with
-the middleware's own requests ("model alone" asks it on every sample; "rules + model" is what
-the middleware decides, which skips the model when the rules decided).
+extension, Brave, Safari, Firefox on a Mac, on Linux, `resistFingerprinting` and strict tracking
+protection, Chrome on Windows, Android), and automated browsers captured by `bun run capture`
+(Playwright driving Chromium, Firefox, installed Chrome and Brave, with and without a stealth
+layer; Patchright; [Camoufox](https://github.com/CloverLabsAI/camoufox) claiming macOS, Windows
+and Linux, the last one headed with its human-like cursor). Add your own browsers from the demo's
+download button: `bun run bench --add notabot-signals.json --label human --source "Firefox on
+Linux"`. With a model set, two more columns appear, asked with the middleware's own requests
+("model alone" asks it on every sample; "rules + model" is what the middleware decides, which
+skips the model when the rules decided).
 
 The scores below use the correlation-capped combination described above.
 
 <!-- bench:start -->
 | Classifier                          | Humans passed | Humans challenged | Humans refused | Bots refused | Bots challenged | Bots passed |
 | ----------------------------------- | ------------- | ----------------- | -------------- | ------------ | --------------- | ----------- |
-| Rules alone                         | 9/9           | 0                 | 0              | 7/8          | 1               | 0           |
-| Logistic regression (leave-one-out) | 9/9           | 0                 | 0              | 5/8          | 1               | 2           |
-| Model alone (claude-haiku-5-5)      | 9/9           | 0                 | 0              | 8/8          | 0               | 0           |
-| Rules + model (claude-haiku-5-5)    | 9/9           | 0                 | 0              | 7/8          | 1               | 0           |
+| Rules alone                         | 13/13         | 0                 | 0              | 8/13         | 4               | 1           |
+| Logistic regression (leave-one-out) | 12/13         | 1                 | 0              | 7/13         | 3               | 3           |
 
-17 samples: 8 human profiles built from documented setups, 1 real browser captured by hand, 8 automated browsers captured by `scripts/capture.ts`. Bot probability per sample:
+26 samples: 12 human profiles built from documented setups, 1 real browser captured by hand, 13 automated browsers captured by `scripts/capture.ts`. Bot probability per sample:
 
-| Sample                                | Label | Rules | Regression | Model alone | Rules + model |
-| ------------------------------------- | ----- | ----- | ---------- | ----------- | ------------- |
-| chrome-mac                            | human | 0.00  | 0.07       | 0.05        | 0.00          |
-| keyboard-only                         | human | 0.00  | 0.07       | 0.08        | 0.00          |
-| screen-reader                         | human | 0.00  | 0.07       | 0.08        | 0.00          |
-| privacy-extension                     | human | 0.28  | 0.05       | 0.10        | 0.21          |
-| brave                                 | human | 0.00  | 0.05       | 0.05        | 0.00          |
-| safari                                | human | 0.00  | 0.07       | 0.05        | 0.00          |
-| firefox-rfp                           | human | 0.10  | 0.03       | 0.10        | 0.10          |
-| android-chrome                        | human | 0.00  | 0.14       | 0.10        | 0.00          |
-| brave-automated                       | bot   | 0.95  | 0.15       | 0.90        | 0.95          |
-| chrome-automated                      | bot   | 0.99  | 0.97       | 0.98        | 0.99          |
-| chrome-headed-hidden                  | bot   | 0.69  | 0.22       | 0.90        | 0.77          |
-| headless-new                          | bot   | 0.99  | 0.99       | 0.98        | 0.99          |
-| headless-shell                        | bot   | 0.99  | 1.00       | 0.99        | 0.99          |
-| human-brave-156-on-macos-real-profile | human | 0.00  | 0.24       | 0.10        | 0.00          |
-| spoofed-windows-ua                    | bot   | 0.98  | 0.75       | 0.97        | 0.98          |
-| stealth-js-layer                      | bot   | 1.00  | 0.95       | 0.98        | 1.00          |
-| stealth-linux-ua                      | bot   | 0.99  | 0.99       | 0.97        | 0.99          |
+| Sample                                | Label | Rules | Regression |
+| ------------------------------------- | ----- | ----- | ---------- |
+| chrome-mac                            | human | 0.00  | 0.20       |
+| keyboard-only                         | human | 0.00  | 0.20       |
+| screen-reader                         | human | 0.00  | 0.20       |
+| privacy-extension                     | human | 0.28  | 0.13       |
+| brave                                 | human | 0.00  | 0.11       |
+| safari                                | human | 0.00  | 0.20       |
+| firefox-rfp                           | human | 0.10  | 0.06       |
+| firefox-mac                           | human | 0.00  | 0.20       |
+| firefox-strict                        | human | 0.00  | 0.11       |
+| firefox-linux                         | human | 0.00  | 0.20       |
+| chrome-windows                        | human | 0.00  | 0.20       |
+| android-chrome                        | human | 0.00  | 0.33       |
+| brave-automated                       | bot   | 0.95  | 0.24       |
+| camoufox-linux                        | bot   | 0.00  | 0.11       |
+| camoufox-macos                        | bot   | 0.64  | 0.76       |
+| camoufox-windows                      | bot   | 0.64  | 0.76       |
+| chrome-automated                      | bot   | 0.99  | 0.99       |
+| chrome-headed-hidden                  | bot   | 0.69  | 0.97       |
+| firefox-automated                     | bot   | 0.98  | 0.97       |
+| headless-new                          | bot   | 0.99  | 1.00       |
+| headless-shell                        | bot   | 0.99  | 0.99       |
+| human-brave-156-on-macos-real-profile | human | 0.00  | 0.42       |
+| patchright-headed                     | bot   | 0.50  | 0.27       |
+| spoofed-windows-ua                    | bot   | 0.98  | 0.62       |
+| stealth-js-layer                      | bot   | 1.00  | 0.98       |
+| stealth-linux-ua                      | bot   | 0.99  | 1.00       |
 <!-- bench:end -->
 
-Read it for what it is. The hardest sample, a headed Chrome with `AutomationControlled` off
-that FingerprintJS's open-source BotD also calls "not a bot", has no automation trace at all: the
-rules now give it the extra step only through its behaviour (a ruler-straight pointer in even
-steps, keys at a metronome's pace, which `robotic-pointer` and `robotic-typing` read), and the
-model, asked alone, refuses it. That is the model's job here: catching what the rules miss,
-never overruling a decided rule. A bot that moves and types like a person would pass all of it.
+Read it for what it is. A headed Chrome with `AutomationControlled` off, which FingerprintJS's
+open-source BotD also calls "not a bot", has no automation trace at all: the rules give it the
+extra step only through its behaviour (a ruler-straight pointer in even steps, keys at a
+metronome's pace, which `robotic-pointer` and `robotic-typing` read). Patchright and Camoufox
+fare the same: nothing in their JavaScript looks replaced, only their scripted pointer or typing
+gives them away, and Camoufox's human-like cursor passes as a person. A bot that moves and types
+like a person would pass all of it.
 The real Brave (farbled canvas, audio and core count, its own WebGL renderer name) raises no
 rule. An AI agent driving that same Brave through a browser extension is called human too: the
 slider refused its straight drag, and the targets now refuse clicks that jump onto each target.

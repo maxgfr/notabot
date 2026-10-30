@@ -1,0 +1,195 @@
+{
+  "id": "camoufox-linux",
+  "label": "bot",
+  "source": "Camoufox, headed, a generated Linux fingerprint on a Mac, its human-like cursor",
+  "signals": {
+    "version": 1,
+    "collectedAt": "2026-10-30T15:03:48.632Z",
+    "durationMs": 51,
+    "env": {
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0",
+      "uaData": null,
+      "platform": "Linux x86_64",
+      "vendor": "",
+      "language": "en-US",
+      "languages": ["en-US", "en"],
+      "timezone": "Europe/Paris",
+      "timezoneOffset": -60,
+      "timezoneOffsetFromName": -60,
+      "intlLocale": "en-US",
+      "screen": {
+        "width": 1800,
+        "height": 1080,
+        "availWidth": 1800,
+        "availHeight": 1053,
+        "colorDepth": 24,
+        "pixelRatio": 1
+      },
+      "window": {
+        "innerWidth": 1280,
+        "innerHeight": 720,
+        "outerWidth": 1280,
+        "outerHeight": 805
+      },
+      "hardwareConcurrency": 10,
+      "deviceMemory": null,
+      "maxTouchPoints": 0,
+      "connection": null,
+      "cookieEnabled": true,
+      "doNotTrack": "unspecified",
+      "globalPrivacyControl": false,
+      "pdfViewerEnabled": true,
+      "storageQuotaMB": 10240,
+      "codecs": {
+        "h264": "probably",
+        "hevc": "probably",
+        "vp9": "probably",
+        "av1": "probably",
+        "theora": "no",
+        "aac": "probably",
+        "opus": "probably",
+        "flac": "maybe",
+        "mp3": "maybe"
+      },
+      "mediaQueries": {
+        "darkScheme": false,
+        "reducedMotion": false,
+        "moreContrast": false,
+        "forcedColors": false,
+        "hoverNone": false,
+        "pointerCoarse": false,
+        "hdr": false,
+        "p3": false
+      },
+      "mediaDevices": {
+        "audioinput": 1,
+        "audiooutput": 0,
+        "videoinput": 0
+      },
+      "permissions": {
+        "notifications": "prompt",
+        "camera": "prompt",
+        "microphone": "prompt",
+        "persistent-storage": "prompt",
+        "geolocation": "prompt"
+      },
+      "evalLength": 37,
+      "errorFingerprint": "can't access property \"x\" of null"
+    },
+    "hardware": {
+      "canvas": {
+        "hash": "redacted",
+        "stable": true
+      },
+      "webgl": {
+        "version": "WebGL 1.0",
+        "vendor": "Mozilla",
+        "renderer": "Apple M1, or similar",
+        "unmaskedVendor": "Intel",
+        "unmaskedRenderer": "Intel(R) HD Graphics, or similar",
+        "shadingLanguage": "WebGL GLSL ES 1.0",
+        "maxTextureSize": 4096,
+        "extensions": 29,
+        "sceneHash": "redacted"
+      },
+      "webgpu": {
+        "vendor": "",
+        "architecture": ""
+      },
+      "audio": null,
+      "fonts": [
+        "font-1",
+        "font-2",
+        "font-3",
+        "font-4",
+        "font-5",
+        "font-6",
+        "font-7",
+        "font-8",
+        "font-9",
+        "font-10"
+      ]
+    },
+    "automation": {
+      "webdriver": false,
+      "webdriverOwnProperty": false,
+      "headlessUserAgent": false,
+      "headlessBrand": false,
+      "chromeObjectMissing": false,
+      "plugins": 5,
+      "mimeTypes": 2,
+      "pluginsGenuine": true,
+      "notificationPermissionMismatch": false,
+      "automationGlobals": [],
+      "outerSizeZero": false,
+      "emptyLanguages": false,
+      "softwareRenderer": false,
+      "engineClaimed": "gecko",
+      "engineObserved": "gecko-or-webkit"
+    },
+    "tampering": {
+      "lies": [],
+      "checked": 25,
+      "toStringPatched": false
+    },
+    "page": {
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0",
+      "platform": "Linux x86_64",
+      "languages": ["en-US", "en"],
+      "hardwareConcurrency": 10,
+      "deviceMemory": null,
+      "webdriver": false,
+      "timezone": "Europe/Paris",
+      "webglRenderer": "Intel(R) HD Graphics, or similar"
+    },
+    "iframe": null,
+    "worker": {
+      "snapshot": {
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0",
+        "platform": "Linux x86_64",
+        "languages": ["en-US", "en"],
+        "hardwareConcurrency": 10,
+        "deviceMemory": null,
+        "webdriver": null,
+        "timezone": "Europe/Paris",
+        "webglRenderer": "Intel(R) HD Graphics, or similar"
+      },
+      "mismatches": []
+    },
+    "privacy": {
+      "opfs": "ok"
+    },
+    "errors": {}
+  },
+  "behavior": {
+    "samples": 251,
+    "durationMs": 7242,
+    "speedMean": 0.347,
+    "speedCv": 2.669,
+    "accelCv": 6.529,
+    "straightness": 0.614,
+    "angleEntropy": 0.677,
+    "jitter": 13.16,
+    "stepCv": 2.157,
+    "turnRate": 0.325,
+    "endSlowdown": 1.85,
+    "overshoot": 1,
+    "tremor": 2.73,
+    "sessionMs": 8139,
+    "moves": 251,
+    "clicks": 1,
+    "keys": 16,
+    "scrolls": 0,
+    "untrusted": 0,
+    "inputWithoutKeys": 0,
+    "focusChanges": 2,
+    "firstInteractionMs": 113,
+    "coalescedMean": 1,
+    "keyDwellMean": 40,
+    "keyDwellCv": 0.827,
+    "keyFlightCv": 0.462,
+    "scrollCv": null,
+    "pastes": 0,
+    "honeypot": 0
+  }
+}

@@ -1,0 +1,214 @@
+{
+  "id": "firefox-automated",
+  "label": "bot",
+  "source": "Playwright Firefox, headless, nothing hidden",
+  "signals": {
+    "version": 1,
+    "collectedAt": "2026-10-30T15:03:17.761Z",
+    "durationMs": 49,
+    "env": {
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0",
+      "uaData": null,
+      "platform": "MacIntel",
+      "vendor": "",
+      "language": "en-US",
+      "languages": ["en-US", "en"],
+      "timezone": "Europe/Paris",
+      "timezoneOffset": -60,
+      "timezoneOffsetFromName": -60,
+      "intlLocale": "en-US",
+      "screen": {
+        "width": 1366,
+        "height": 768,
+        "availWidth": 1366,
+        "availHeight": 692,
+        "colorDepth": 24,
+        "pixelRatio": 1
+      },
+      "window": {
+        "innerWidth": 1280,
+        "innerHeight": 720,
+        "outerWidth": 1280,
+        "outerHeight": 805
+      },
+      "hardwareConcurrency": 10,
+      "deviceMemory": null,
+      "maxTouchPoints": 0,
+      "connection": null,
+      "cookieEnabled": true,
+      "doNotTrack": "unspecified",
+      "globalPrivacyControl": false,
+      "pdfViewerEnabled": false,
+      "storageQuotaMB": 10240,
+      "codecs": {
+        "h264": "probably",
+        "hevc": "probably",
+        "vp9": "probably",
+        "av1": "probably",
+        "theora": "no",
+        "aac": "probably",
+        "opus": "probably",
+        "flac": "maybe",
+        "mp3": "maybe"
+      },
+      "mediaQueries": {
+        "darkScheme": false,
+        "reducedMotion": false,
+        "moreContrast": false,
+        "forcedColors": false,
+        "hoverNone": false,
+        "pointerCoarse": false,
+        "hdr": false,
+        "p3": false
+      },
+      "mediaDevices": {
+        "audioinput": 1,
+        "audiooutput": 0,
+        "videoinput": 1
+      },
+      "permissions": {
+        "notifications": "prompt",
+        "geolocation": "prompt",
+        "camera": "prompt",
+        "microphone": "prompt",
+        "persistent-storage": "prompt"
+      },
+      "evalLength": 37,
+      "errorFingerprint": "can't access property \"x\" of null"
+    },
+    "hardware": {
+      "canvas": {
+        "hash": "redacted",
+        "stable": true
+      },
+      "webgl": {
+        "version": "WebGL 1.0",
+        "vendor": "Mozilla",
+        "renderer": "Apple M1, or similar",
+        "unmaskedVendor": "Apple",
+        "unmaskedRenderer": "Apple M1, or similar",
+        "shadingLanguage": "WebGL GLSL ES 1.0",
+        "maxTextureSize": 8192,
+        "extensions": 27,
+        "sceneHash": "redacted"
+      },
+      "webgpu": null,
+      "audio": {
+        "hash": "redacted",
+        "sum": 0
+      },
+      "fonts": [
+        "font-1",
+        "font-2",
+        "font-3",
+        "font-4",
+        "font-5",
+        "font-6",
+        "font-7",
+        "font-8",
+        "font-9",
+        "font-10",
+        "font-11",
+        "font-12",
+        "font-13",
+        "font-14",
+        "font-15",
+        "font-16",
+        "font-17"
+      ]
+    },
+    "automation": {
+      "webdriver": true,
+      "webdriverOwnProperty": false,
+      "headlessUserAgent": false,
+      "headlessBrand": false,
+      "chromeObjectMissing": false,
+      "plugins": 0,
+      "mimeTypes": 0,
+      "pluginsGenuine": true,
+      "notificationPermissionMismatch": false,
+      "automationGlobals": [],
+      "outerSizeZero": false,
+      "emptyLanguages": false,
+      "softwareRenderer": false,
+      "engineClaimed": "gecko",
+      "engineObserved": "gecko-or-webkit"
+    },
+    "tampering": {
+      "lies": [],
+      "checked": 25,
+      "toStringPatched": false
+    },
+    "page": {
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0",
+      "platform": "MacIntel",
+      "languages": ["en-US", "en"],
+      "hardwareConcurrency": 10,
+      "deviceMemory": null,
+      "webdriver": true,
+      "timezone": "Europe/Paris",
+      "webglRenderer": "Apple M1, or similar"
+    },
+    "iframe": {
+      "snapshot": {
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0",
+        "platform": "MacIntel",
+        "languages": ["en-US", "en"],
+        "hardwareConcurrency": 10,
+        "deviceMemory": null,
+        "webdriver": true,
+        "timezone": "Europe/Paris",
+        "webglRenderer": "Apple M1, or similar"
+      },
+      "mismatches": []
+    },
+    "worker": {
+      "snapshot": {
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0",
+        "platform": "MacIntel",
+        "languages": ["en-US", "en"],
+        "hardwareConcurrency": 10,
+        "deviceMemory": null,
+        "webdriver": null,
+        "timezone": "Europe/Paris",
+        "webglRenderer": "Apple M1, or similar"
+      },
+      "mismatches": []
+    },
+    "privacy": {
+      "opfs": "ok"
+    },
+    "errors": {}
+  },
+  "behavior": {
+    "samples": 27,
+    "durationMs": 273,
+    "speedMean": 3.338,
+    "speedCv": 0.5,
+    "accelCv": 2.147,
+    "straightness": 1,
+    "angleEntropy": 0.239,
+    "jitter": 0.14,
+    "stepCv": 0.025,
+    "turnRate": 0,
+    "endSlowdown": 0.878,
+    "overshoot": 0,
+    "tremor": 1.69,
+    "sessionMs": 815,
+    "moves": 27,
+    "clicks": 1,
+    "keys": 15,
+    "scrolls": 0,
+    "untrusted": 0,
+    "inputWithoutKeys": 0,
+    "focusChanges": 0,
+    "firstInteractionMs": 8,
+    "coalescedMean": 1,
+    "keyDwellMean": 32,
+    "keyDwellCv": 0.028,
+    "keyFlightCv": 0.033,
+    "scrollCv": null,
+    "pastes": 0,
+    "honeypot": 0
+  }
+}
