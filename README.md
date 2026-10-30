@@ -1,6 +1,6 @@
 # notabot
 
-[Live demo](https://maxgfr.github.io/notabot/) · [En français](https://maxgfr.github.io/notabot/fr/) · [npm](https://www.npmjs.com/package/notabot) · [Worker example](examples/cloudflare-worker)
+[Live demo](https://maxgfr.github.io/notabot/) · [En français](https://maxgfr.github.io/notabot/fr/) · [npm](https://www.npmjs.com/package/notabot) · [Worker example](examples/cloudflare-worker) · [Every method, rule by rule](doc/methods.md)
 
 Open-source bot detection, front-end only. One script tag reads everything a browser tells a
 page, cross-checks it for lies, runs an invisible proof-of-work, and can ask a small LLM of your
