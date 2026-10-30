@@ -307,7 +307,7 @@ export const RULES: Rule[] = [
     category: "consistency",
     weight: 0.6,
     explain:
-      "The user agent, navigator.platform, userAgentData and the GPU name different systems.",
+      "The user agent, navigator.platform, appVersion, oscpu, userAgentData and the GPU name different systems.",
     test: ({ signals }) => {
       const systems = claimedSystems(signals);
       return systemsDisagree(systems)
