@@ -260,6 +260,139 @@ function firefoxResistFingerprinting(): Profile {
   };
 }
 
+const FIREFOX_MAC_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0";
+const FIREFOX_LINUX_UA = "Mozilla/5.0 (X11; Linux x86_64; rv:157.0) Gecko/20100101 Firefox/157.0";
+
+/**
+ * Firefox as it reads on its own system: no userAgentData, no deviceMemory, no window.chrome,
+ * eval.toString() of 37 characters, Gecko's error text, and a WebGL renderer Firefox rounds to a
+ * family ("…, or similar"). Read from Firefox 157 on a Mac, the rest from its documentation.
+ */
+function firefoxOn(
+  ua: string,
+  platform: string,
+  renderer: string,
+  fonts: string[],
+): NotabotSignals {
+  const s = realChrome();
+  s.env.userAgent = ua;
+  s.env.uaData = null;
+  s.env.platform = platform;
+  s.env.vendor = "";
+  s.env.deviceMemory = null;
+  s.env.evalLength = 37;
+  s.env.errorFingerprint = 'can\'t access property "x", x is null';
+  s.hardware.webgl = {
+    version: "WebGL 1.0",
+    vendor: "Mozilla",
+    renderer: "Mozilla",
+    unmaskedVendor: renderer.startsWith("Apple") ? "Apple" : "Intel",
+    unmaskedRenderer: renderer,
+    shadingLanguage: "WebGL GLSL ES 1.0",
+    maxTextureSize: 16384,
+    extensions: 36,
+    sceneHash: "f12efox0",
+  };
+  s.hardware.fonts = fonts;
+  s.automation = {
+    ...s.automation,
+    engineClaimed: "gecko",
+    engineObserved: "gecko-or-webkit",
+    chromeObjectMissing: false,
+  };
+  s.page = { ...s.page, userAgent: ua, platform, deviceMemory: null, webglRenderer: renderer };
+  if (s.iframe) s.iframe.snapshot = { ...s.page };
+  if (s.worker) s.worker.snapshot = { ...s.page };
+  return s;
+}
+
+const MAC_FONTS = ["Arial", "Courier New", "Geneva", "Helvetica Neue", "Lucida Grande", "Menlo"];
+
+function firefoxMac(): Profile {
+  const s = firefoxOn(FIREFOX_MAC_UA, "MacIntel", "Apple M1, or similar", MAC_FONTS);
+  s.hardware.webgpu = { vendor: "apple", architecture: "metal-3" };
+  return { id: "firefox-mac", note: "Firefox on a Mac, a trackpad.", signals: s, behavior: HAND };
+}
+
+function firefoxStrict(): Profile {
+  // Enhanced Tracking Protection set to strict turns fingerprinting protection on: the canvas is
+  // randomised per session and per site (two reads agree, the hash is another one), fonts are
+  // limited to the system's base ones.
+  const s = firefoxOn(FIREFOX_MAC_UA, "MacIntel", "Apple M1, or similar", ["Arial", "Geneva"]);
+  s.hardware.canvas = { hash: "e7b0e7b0", stable: true };
+  s.hardware.webgpu = null;
+  return {
+    id: "firefox-strict",
+    note: "Firefox with Enhanced Tracking Protection on strict: randomised canvas, base fonts.",
+    signals: s,
+    behavior: HAND,
+  };
+}
+
+function firefoxLinux(): Profile {
+  const s = firefoxOn(FIREFOX_LINUX_UA, "Linux x86_64", "Intel(R) HD Graphics, or similar", [
+    "DejaVu Sans",
+    "Liberation Sans",
+    "Noto Sans",
+    "Ubuntu",
+  ]);
+  s.hardware.webgpu = null;
+  s.env.screen = { ...s.env.screen, pixelRatio: 1 };
+  return {
+    id: "firefox-linux",
+    note: "Firefox on Ubuntu, Intel graphics through Mesa, a mouse.",
+    signals: s,
+    behavior: HAND,
+  };
+}
+
+const WINDOWS_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
+
+function chromeWindows(): Profile {
+  const s = realChrome();
+  const renderer =
+    "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002504) Direct3D11 vs_5_0 ps_5_0, D3D11)";
+  s.env.userAgent = WINDOWS_UA;
+  s.env.uaData = {
+    brands: ["Chromium 142", "Google Chrome 142", "Not_A Brand 99"],
+    mobile: false,
+    platform: "Windows",
+  };
+  s.env.platform = "Win32";
+  s.env.screen = {
+    width: 1920,
+    height: 1080,
+    availWidth: 1920,
+    availHeight: 1032,
+    colorDepth: 24,
+    pixelRatio: 1.25,
+  };
+  s.hardware.webgl = {
+    version: "WebGL 1.0 (OpenGL ES 2.0 Chromium)",
+    vendor: "WebKit",
+    renderer: "WebKit WebGL",
+    unmaskedVendor: "Google Inc. (NVIDIA)",
+    unmaskedRenderer: renderer,
+    shadingLanguage: "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
+    maxTextureSize: 16384,
+    extensions: 36,
+    sceneHash: "d3d11aaa",
+  };
+  s.hardware.webgpu = { vendor: "nvidia", architecture: "ampere" };
+  s.hardware.fonts = ["Arial", "Calibri", "Cambria", "Consolas", "Segoe UI", "Tahoma", "Verdana"];
+  s.page = { ...s.page, userAgent: WINDOWS_UA, platform: "Win32", webglRenderer: renderer };
+  if (s.iframe) s.iframe.snapshot = { ...s.page };
+  if (s.worker) s.worker.snapshot = { ...s.page };
+  return {
+    id: "chrome-windows",
+    note: "Chrome on Windows 11, an NVIDIA card, 125 % scaling, a mouse.",
+    signals: s,
+    behavior: HAND,
+  };
+}
+
 const ANDROID_UA =
   "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36";
 
@@ -326,6 +459,10 @@ export function humanProfiles(): Profile[] {
     brave(),
     safari(),
     firefoxResistFingerprinting(),
+    firefoxMac(),
+    firefoxStrict(),
+    firefoxLinux(),
+    chromeWindows(),
     mobile(),
   ];
 }

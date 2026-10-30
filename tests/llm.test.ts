@@ -194,7 +194,7 @@ describe("local regression", () => {
     const a = trainLocal(samples);
     const b = trainLocal(samples);
     expect(a.weights).toEqual(b.weights);
-    expect(a.trainedOn).toMatchObject({ humans: 8, bots: 1 });
+    expect(a.trainedOn).toMatchObject({ humans: humanProfiles().length, bots: 1 });
     const bot = classifyLocal(samples.at(-1)?.features ?? {}, a);
     const human = classifyLocal(samples[0]?.features ?? {}, a);
     expect(bot.bot).toBeGreaterThan(human.bot);

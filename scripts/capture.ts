@@ -1,10 +1,14 @@
 // Records the benchmark's automated side: real browsers driven by Playwright, each the way a bot
 // would run it, reading the site's signals and behaviour. `bun run build && bun scripts/capture.ts`
-// writes assets/corpus/<id>.json. Human captures are added from the site's "download" button:
-// `bun run bench --add notabot-signals.json --label human --source "my Firefox"`.
+// writes assets/corpus/<id>.json (`bun scripts/capture.ts camoufox` captures only the runs whose
+// id holds "camoufox"). Firefox comes from `bunx playwright install firefox`, Patchright's
+// Chromium from `bunx patchright install chromium`, Camoufox from a Python that has it
+// (`CAMOUFOX_PYTHON`, default `python3`, after `pip install camoufox && python -m camoufox fetch`);
+// a run whose browser is missing fails alone. Human captures are added from the site's "download"
+// button: `bun run bench --add notabot-signals.json --label human --source "my Firefox"`.
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { type Browser, chromium, type LaunchOptions, type Page } from "@playwright/test";
+import { type Browser, chromium, firefox, type LaunchOptions, type Page } from "@playwright/test";
 import type { NotabotSignals } from "../src/signals/types";
 import { redact } from "./redact";
 
@@ -19,7 +23,11 @@ const HIDE = ["--disable-blink-features=AutomationControlled"];
 interface Run {
   id: string;
   source: string;
+  /** What launches it. Default Playwright's Chromium. */
+  driver?: "chromium" | "firefox" | "patchright" | "camoufox";
   launch: LaunchOptions;
+  /** Camoufox's own options (`os`, `humanize`…), turned into launch options by its package. */
+  camoufox?: Record<string, unknown>;
   userAgent?: string;
   /** Scripted pointer moves (ruler-straight) and typing, as a bot filling a form. */
   act: boolean;
@@ -75,7 +83,85 @@ const RUNS: Run[] = [
     launch: { channel: "chrome", headless: false, args: HIDE },
     act: true,
   },
+  {
+    id: "firefox-automated",
+    source: "Playwright Firefox, headless, nothing hidden",
+    driver: "firefox",
+    launch: {},
+    act: true,
+  },
+  {
+    id: "patchright-headed",
+    source: "Patchright (Playwright patched against its CDP leaks), Chromium, headed",
+    driver: "patchright",
+    launch: { headless: false },
+    act: true,
+  },
+  {
+    id: "camoufox-macos",
+    source: "Camoufox, headless, a generated macOS fingerprint on a Mac",
+    driver: "camoufox",
+    launch: {},
+    camoufox: { headless: true, os: "macos" },
+    act: true,
+  },
+  {
+    id: "camoufox-windows",
+    source: "Camoufox, headless, a generated Windows fingerprint on a Mac",
+    driver: "camoufox",
+    launch: {},
+    camoufox: { headless: true, os: "windows" },
+    act: true,
+  },
+  {
+    id: "camoufox-linux",
+    source: "Camoufox, headed, a generated Linux fingerprint on a Mac, its human-like cursor",
+    driver: "camoufox",
+    launch: {},
+    camoufox: { headless: false, os: "linux", humanize: true },
+    act: true,
+  },
 ];
+
+const CAMOUFOX_PYTHON = process.env.CAMOUFOX_PYTHON ?? "python3";
+
+/** Camoufox's binary, preferences and fingerprint (in its env), as its Python package builds them. */
+async function camoufoxLaunch(options: Record<string, unknown>): Promise<LaunchOptions> {
+  const code =
+    "import json,sys\nfrom camoufox.utils import launch_options\nprint(json.dumps(launch_options(**json.loads(sys.argv[1]))))";
+  const proc = Bun.spawn([CAMOUFOX_PYTHON, "-c", code, JSON.stringify(options)], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const out = await new Response(proc.stdout).text();
+  if ((await proc.exited) !== 0)
+    throw new Error(
+      `camoufox: ${(await new Response(proc.stderr).text()).trim().split("\n").pop()}`,
+    );
+  const o = JSON.parse(out.trim().split("\n").pop() ?? "{}");
+  return {
+    executablePath: o.executable_path,
+    args: o.args,
+    env: o.env,
+    firefoxUserPrefs: o.firefox_user_prefs,
+    headless: o.headless,
+  };
+}
+
+async function launch(run: Run): Promise<Browser> {
+  switch (run.driver) {
+    case "firefox":
+      return firefox.launch(run.launch);
+    case "camoufox":
+      return firefox.launch({ ...run.launch, ...(await camoufoxLaunch(run.camoufox ?? {})) });
+    case "patchright": {
+      const { chromium: patched } = await import("patchright");
+      return (await patched.launch(run.launch)) as unknown as Browser;
+    }
+    default:
+      return chromium.launch(run.launch);
+  }
+}
 
 /** What puppeteer-extra-plugin-stealth-style layers do: redefine what the page reads. */
 const STEALTH = () => {
@@ -127,11 +213,13 @@ const server = Bun.spawn(["bun", "scripts/serve.ts"], {
 await Bun.sleep(800);
 await mkdir("assets/corpus", { recursive: true });
 try {
+  const only = process.argv[2];
   for (const run of RUNS) {
+    if (only && !run.id.includes(only)) continue;
     if (run.launch.executablePath && !existsSync(run.launch.executablePath)) continue;
     let browser: Browser | null = null;
     try {
-      browser = await chromium.launch(run.launch);
+      browser = await launch(run);
       const context = await browser.newContext(run.userAgent ? { userAgent: run.userAgent } : {});
       if (run.stealth) await context.addInitScript(STEALTH);
       const { signals, behavior } = await capture(await context.newPage(), run.act);
