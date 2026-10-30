@@ -3,7 +3,12 @@
 // RequestInfo and the rules read only that.
 import type { Category, Flag } from "../score/index";
 import { osOf } from "../signals/util";
-import { type Http2Settings, http2SettingsOffChromium, ja4FitsModernBrowser } from "./fingerprints";
+import {
+  type Http2Settings,
+  http2SettingsOffChromium,
+  http2SettingsOffFirefox,
+  ja4FitsModernBrowser,
+} from "./fingerprints";
 
 /** What Cloudflare tells a Worker about the connection (`request.cf`), or a proxy's equivalent. */
 export interface NetworkInfo {
@@ -276,6 +281,19 @@ export const REQUEST_RULES: RequestRule[] = [
     test: (i) => {
       if (!i.http2Settings || chromiumVersion(header(i, "user-agent")) === null) return null;
       const off = http2SettingsOffChromium(i.http2Settings);
+      return off.length ? off.join(", ") : null;
+    },
+  },
+  {
+    id: "http2-settings-not-firefox",
+    weight: 0.5,
+    explain:
+      "The HTTP/2 SETTINGS differ from the ones Firefox sends, though the User-Agent claims Firefox.",
+    test: (i) => {
+      const firefox = /Firefox\/(\d+)/.exec(header(i, "user-agent"))?.[1];
+      // From the ESR still supported: older releases are left alone rather than guessed at.
+      if (!i.http2Settings || !firefox || Number(firefox) < 115) return null;
+      const off = http2SettingsOffFirefox(i.http2Settings);
       return off.length ? off.join(", ") : null;
     },
   },

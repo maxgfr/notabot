@@ -272,7 +272,11 @@ without such a seam that moves and types like a person would pass all of it.
 What a patch cannot rename was measured too. A costly shader (`renderMs`) takes a graphics card
 0 to 2 ms in Chrome, Firefox and Safari's engine, SwiftShader 18 ms on ten cores and 64 to 77 ms
 on two (Docker): WebGL naming a card at a software rasterizer's speed raises
-`software-speed-gpu-name`, weak, the threshold provisional. The real core count was tried and
+`software-speed-gpu-name`, weak, the threshold provisional. The pixels are surer than the speed:
+SwiftShader draws the WebGL scene as `ad1abc1d` in Chromium 148 and 156, on macOS arm64 and Linux
+arm64 and x86-64, so that scene under a card's name raises `software-scene-gpu-name`, whatever
+the machine's speed (`SOFTWARE_SCENES`, a fixed list: a server learning it from traffic could be
+fed forged scenes until real Macs were flagged). The real core count was tried and
 left out: workers running at once in 40 ms windows read 2.9 to 4.7 of ten cores on a Mac whose
 efficiency cores run slower, and 1.5 to 3 in Docker limited to two CPUs claiming ten or sixteen,
 too close to tell apart without challenging people. Camoufox in a container without a GPU has no
@@ -375,7 +379,10 @@ What a request is checked for (`REQUEST_RULES`, extensible with your own `rules`
 - **HTTP/2 SETTINGS:** served by `node:http2` (its compatibility API through `notabotExpress`),
   the client's SETTINGS are read from the session; a Chromium User-Agent whose SETTINGS are not
   Chromium's (header table 65536, no push, a 6 MB window, a 256 KB header list; sources in
-  `REFERENCES`) raises `http2-settings-not-chromium`.
+  `REFERENCES`) raises `http2-settings-not-chromium`, and a Firefox User-Agent (115 and later)
+  whose SETTINGS are not Firefox's (header table 65536, a 128 KB window, 16 KB frames, as Firefox
+  157 and Camoufox sent them) raises `http2-settings-not-firefox`. Camoufox, a real Firefox, passes
+  it; a script borrowing Firefox's User-Agent does not.
 - **JA4H:** every analysis computes the request's [JA4H](https://github.com/FoxIO-LLC/ja4/blob/main/technical_details/JA4H.md)
   (returned by `analyzeRequest()` as `ja4h`, and on `info.ja4h` for your own rules): from Node's
   `rawHeaders`, in the order the client sent them; Fetch's Headers are sorted, so there it says

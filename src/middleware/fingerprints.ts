@@ -17,6 +17,12 @@ export const REFERENCES = {
     source:
       "Akamai, Passive Fingerprinting of HTTP/2 Clients (Black Hat EU 2017), and curl-impersonate's Chrome profiles: https://github.com/lwthiker/curl-impersonate",
   },
+  firefoxH2: {
+    what: "The SETTINGS Firefox sends on a new HTTP/2 connection",
+    values: "HEADER_TABLE_SIZE 65536, INITIAL_WINDOW_SIZE 131072, MAX_FRAME_SIZE 16384",
+    source:
+      "Read from node:http2's remoteSettings with Firefox 157 and Camoufox 156 (Firefox's network stack), October 2026; curl-impersonate's Firefox profiles: https://github.com/lwthiker/curl-impersonate",
+  },
 } as const;
 
 export interface Ja4 {
@@ -78,14 +84,31 @@ export const CHROMIUM_H2_SETTINGS = {
   maxHeaderListSize: 262144,
 } as const;
 
-/** The SETTINGS that differ from Chromium's, as `name=value` strings; empty when they match. */
-export function http2SettingsOffChromium(settings: Http2Settings): string[] {
+/** Firefox's SETTINGS values (see {@link REFERENCES}.firefoxH2). */
+export const FIREFOX_H2_SETTINGS = {
+  headerTableSize: 65536,
+  initialWindowSize: 131072,
+  maxFrameSize: 16384,
+} as const;
+
+/** The SETTINGS that differ from `expected`, as `name=value` strings; empty when they match. */
+function http2SettingsOff(settings: Http2Settings, expected: Http2Settings): string[] {
   const off: string[] = [];
-  for (const [name, expected] of Object.entries(CHROMIUM_H2_SETTINGS)) {
+  for (const [name, want] of Object.entries(expected)) {
     const value = settings[name as keyof Http2Settings];
-    if (value !== undefined && value !== expected) off.push(`${name}=${String(value)}`);
+    if (value !== undefined && value !== want) off.push(`${name}=${String(value)}`);
   }
   return off;
+}
+
+/** The SETTINGS that differ from Chromium's, as `name=value` strings; empty when they match. */
+export function http2SettingsOffChromium(settings: Http2Settings): string[] {
+  return http2SettingsOff(settings, CHROMIUM_H2_SETTINGS);
+}
+
+/** The SETTINGS that differ from Firefox's, as `name=value` strings; empty when they match. */
+export function http2SettingsOffFirefox(settings: Http2Settings): string[] {
+  return http2SettingsOff(settings, FIREFOX_H2_SETTINGS);
 }
 
 const hash12 = async (text: string) =>
