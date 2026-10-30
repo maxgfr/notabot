@@ -441,8 +441,11 @@ Making a gesture cost more to fake:
   sooner than its own duration plus a person's reaction (300 ms) is refused.
 - **Pressure**: with a button down a real browser reports pressure (0.5 for a mouse): a drag at 0
   throughout was written by a script (a finger on some phones reads 0, so touch is left out).
-- **Tremor**: a hand's samples jump around its path (about 2 px in our tests); a computed curve,
-  however bent or eased, bends smoothly (about 0.01 px). The model reads it.
+- **Tremor**: a hand's samples jump around its path; a computed curve, however bent or eased,
+  bends smoothly (about 0.01 px). 40 real drags on a trackpad measured 0.49 to 5.5 px (median
+  1.3, all passed, kept as a test); under 0.2 px a drag is refused, and the model reads it too.
+  On that trackpad a browser gives about one sample per event, so samples per event say nothing
+  about a hand (only 0 is suspect).
 - **A rate per IP**: 20 gestures a minute.
 
 What it still cannot do, measured with `claude-haiku-5-5` on notabot's own gesture prompt:
@@ -452,7 +455,7 @@ What it still cannot do, measured with `claude-haiku-5-5` on notabot's own gestu
 | A hand                                               | pass    | human, 0.90  |
 | A keyboard user's arrow keys                         | pass    | human, 0.80  |
 | An eased script, pressure 0                          | refused | bot, 0.90    |
-| An eased script, pressure 0.5, two samples per event | pass    | unsure, 0.50 |
+| An eased script, pressure 0.5, two samples per event | refused | unsure, 0.50 |
 | The same with an artificial tremor                   | pass    | human, 0.85  |
 
 The gesture is reported by the page, and the rules and the model read the same report: a script
