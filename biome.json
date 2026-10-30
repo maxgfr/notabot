@@ -12,6 +12,7 @@
       "!test-results",
       "!playwright-report",
       "!assets/models.json",
+      "!tests/fixtures/real-drags.json",
       "!site/*.html",
       "!site/content",
       "!site/static",

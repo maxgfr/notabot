@@ -397,6 +397,9 @@ export function trackBehavior(target: Document | HTMLElement = document): Behavi
   };
 }
 
+/** Below this tremor (px) a drag was computed, not moved by a hand. */
+export const MIN_TREMOR = 0.2;
+
 export interface SlideResult {
   passed: boolean;
   reason: "ok" | "too-few-samples" | "too-fast" | "untrusted" | "robotic" | "missed-target";
@@ -431,6 +434,9 @@ export function judgeSlide(
   // evenly stepped drag, but cannot make its steps uneven or its line wobble.
   const human = trajectory.stepCv > 0.2 || trajectory.jitter > 0.6;
   if (!human) return fail("robotic");
+  // A hand trembles around its path: 40 real trackpad drags measured 0.49 to 5.5 px. A curve a
+  // script computes (a Bézier, an easing), however bent or unevenly stepped, measures about 0.01.
+  if (trajectory.tremor !== null && trajectory.tremor < MIN_TREMOR) return fail("robotic");
   // A hand brakes into the zone; a scripted drag arrives at full speed, without a correction.
   if (
     trajectory.endSlowdown !== null &&
