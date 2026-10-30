@@ -618,6 +618,7 @@ export class NotabotCheck extends Base {
         coalesced: events.length || 1,
         pressure: e.pressure,
         type: "pointermove",
+        pointerType: e.pointerType,
       });
       place(toPercent(e.clientX));
     });

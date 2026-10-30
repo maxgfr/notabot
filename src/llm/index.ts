@@ -172,5 +172,6 @@ export {
   type LlmSettingsStore,
   testConnection,
 } from "llm-connect";
+export * from "./gesture";
 export * from "./local";
 export * from "./prompt";

@@ -429,10 +429,36 @@ declares "passed" by itself gets nothing signed; only a token `/verify` signed i
 challenge, can be settled, once; the server checks the handle against the zone it signed, never
 the page's word. Three attempts per token.
 
-What it cannot do: the gesture itself is reported by the page. Pointer samples, key timestamps
-and `isTrusted` are what the browser said, and a script that writes a plausible gesture by hand
-passes the step. It still paid a proof of work for its token, and a score at the bot threshold or
-above is never overturned: the step is friction for scripts that drive a real page, not a proof.
+Making a gesture cost more to fake:
+
+- **The model judges the gesture** (with `llm`): the drag's measures (slowdown on arrival,
+  corrections, tremor, pressure, samples per event), the keys' rhythm, the targets' paths, and the
+  session's own behaviour sealed in the token at `/verify`. A confident "bot" turns a pass into
+  a refusal; it never turns a refusal into a pass, and without an answer the rules decide.
+- **Replays refused**: a fingerprint of each gesture's shape (relative timings and steps) is kept
+  a day; a recorded human gesture plays once.
+- **The server's clock**: a token issued in doubt carries its issue time; a gesture arriving
+  sooner than its own duration plus a person's reaction (300 ms) is refused.
+- **Pressure**: with a button down a real browser reports pressure (0.5 for a mouse): a drag at 0
+  throughout was written by a script (a finger on some phones reads 0, so touch is left out).
+- **Tremor**: a hand's samples jump around its path (about 2 px in our tests); a computed curve,
+  however bent or eased, bends smoothly (about 0.01 px). The model reads it.
+- **A rate per IP**: 20 gestures a minute.
+
+What it still cannot do, measured with `claude-haiku-5-5` on notabot's own gesture prompt:
+
+| Gesture                                              | Rules   | Model        |
+| ---------------------------------------------------- | ------- | ------------ |
+| A hand                                               | pass    | human, 0.90  |
+| A keyboard user's arrow keys                         | pass    | human, 0.80  |
+| An eased script, pressure 0                          | refused | bot, 0.90    |
+| An eased script, pressure 0.5, two samples per event | pass    | unsure, 0.50 |
+| The same with an artificial tremor                   | pass    | human, 0.85  |
+
+The gesture is reported by the page, and the rules and the model read the same report: a script
+that imitates the measures (tremor, pressure, pace) passes both. It still paid a proof of work for
+its token, the replay and the clock still bind it, and a score at the bot threshold or above is
+never overturned: the step is friction for scripts that drive a real page, not a proof.
 
 **The gate counts a request flag once.** The request flags `/verify` saw are sealed in the token
 (`seen`) and already in its score; the gate adds only the flags it sees for the first time, so a

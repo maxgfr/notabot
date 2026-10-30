@@ -11,14 +11,24 @@ import {
   randomTargets,
   type TargetClick,
 } from "../behavior/index";
+import {
+  buildGesturePrompt,
+  GESTURE_PROMPT,
+  type Gesture,
+  gestureFeatures,
+  gestureFingerprint,
+  gestureSpanMs,
+  type SessionSummary,
+  sessionSummary,
+} from "../llm/gesture";
 import { classifyLocal } from "../llm/local";
 // The prompt module only: the server builds the same prompt without bundling the AI stack.
 import {
   botProbabilityOf,
   buildPrompt,
   chatRequests,
-  type Features,
   parseVerdict,
+  SYSTEM_PROMPT,
   serverFeatures,
   toFeatures,
 } from "../llm/prompt";
@@ -250,6 +260,12 @@ const DEFAULT_GATE_BODY = 16 * 1024 * 1024;
 const SIGNALS_REUSE = 5;
 /** Slider attempts per token, as many as the widget allows. */
 const SLIDE_ATTEMPTS = 3;
+/** Gestures a minute one IP may submit to /slide. */
+const SLIDE_IP_RATE = 20;
+/** The least time a person needs to see the extra step and start moving, in milliseconds. */
+const MIN_REACTION_MS = 300;
+/** A model's probability of a bot from which it refuses a gesture: "bot" at 0.7 confidence. */
+const CONFIDENT_BOT = 0.85;
 /** Width of the slider's target zone, in percent of the track. */
 const ZONE_WIDTH = 14;
 
@@ -471,7 +487,8 @@ function isSamples(v: unknown): v is PointerSample[] {
         typeof s.trusted === "boolean" &&
         finite(s.coalesced) &&
         finite(s.pressure) &&
-        typeof s.type === "string",
+        typeof s.type === "string" &&
+        (s.pointerType === undefined || typeof s.pointerType === "string"),
     )
   );
 }
@@ -671,11 +688,10 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
    * The model's probability of a bot, or null: no model, an answer that cannot be read, or no
    * answer within `llm.timeoutMs` (default 4 s). JSON mode, temperature 0, a short answer.
    */
-  async function askModel(features: Features): Promise<number | null> {
+  async function askModel(prompt: string, system = SYSTEM_PROMPT): Promise<number | null> {
     const llm = options.llm;
     if (!llm) return null;
-    const prompt = buildPrompt(features);
-    const cacheKey = await sha256Hex(prompt);
+    const cacheKey = await sha256Hex(`${system.length}:${prompt}`);
     const cached = modelCache.get(cacheKey);
     if (cached !== undefined) return cached;
     // One deadline for every attempt: a server that refuses the first form still answers in time.
@@ -692,7 +708,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       });
     try {
       let res: Response | null = null;
-      const forms = chatRequests(llm.model ?? "default", prompt);
+      const forms = chatRequests(llm.model ?? "default", prompt, 1200, system);
       // Start from the form this server accepted last time: no refused attempt on every call.
       for (let i = requestForm; i < forms.length; i++) {
         res = await call(forms[i] as Record<string, unknown>);
@@ -722,6 +738,8 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     claims: {
       verdict: Verdict;
       bot: number;
+      ms?: number;
+      session?: SessionSummary;
       zone?: number;
       targets?: [number, number][];
       smart?: SealedSignals;
@@ -958,7 +976,7 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       behavior,
       serverFeatures(info, body.signals),
     );
-    const askedModel = rulesDecided(rulesBot) ? null : await askModel(features);
+    const askedModel = rulesDecided(rulesBot) ? null : await askModel(buildPrompt(features));
     // With `local`, the regression stands in when there is no model or it did not answer.
     const localBot =
       askedModel === null && options.local && !rulesDecided(rulesBot)
@@ -973,10 +991,15 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     // What a commercial service would sell as "smart signals", sealed in the token so the
     // backend reads them from /siteverify.
     const smart = await sealedSignals(info, body.signals, flags, tor);
+    const session = visible ? sessionSummary(behavior) : null;
     const { token, exp } = await issue(info, {
       verdict,
       bot,
       smart,
+      // When in doubt: the issue time (ms) and the session's behaviour, for /slide to judge the
+      // gesture against.
+      ...(visible ? { ms: Date.now() } : {}),
+      ...(session ? { session } : {}),
       // Request-shape flags only: a rate or a honeypot is about this moment, not the browser.
       seen: analysis.flags.filter((f) => ruleIds.has(f.id)).map((f) => f.id),
       ...(visible?.kind === "slide" ? { zone: visible.zone } : {}),
@@ -1029,8 +1052,41 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
     // issued) has nothing to settle, and re-sliding it would mint tokens without a proof of work.
     if (claims.verdict !== "unsure" || (claims.zone === undefined && !claims.targets))
       return fail(403, "refused", "no challenge to settle");
+    if (info.ip) {
+      const perIp = await countIn(
+        store,
+        `slide-ip:${await ipHashOf(info.ip)}:${minute()}`,
+        120,
+        SLIDE_IP_RATE,
+      );
+      if (perIp > SLIDE_IP_RATE) return fail(429, "rate-limited", "too many gestures from this IP");
+    }
     const attempt = await countIn(store, `slide:${claims.jti}`, lifetime(claims), SLIDE_ATTEMPTS);
     if (attempt > SLIDE_ATTEMPTS) return fail(429, "rate-limited", "too many attempts");
+    const gesture: Gesture | null = claims.targets
+      ? clicks
+        ? { kind: "targets", clicks }
+        : null
+      : samples
+        ? { kind: "slide", samples }
+        : keyTimes
+          ? { kind: "keys", keyTimes, trusted: body.keysTrusted === true }
+          : null;
+    const refused = (why: "too-fast" | "replayed" | "gesture" | "model") => ({
+      status: 200,
+      body: { passed: false, why, verdict: claims.verdict, attemptsLeft: SLIDE_ATTEMPTS - attempt },
+    });
+    if (!gesture) return refused("gesture");
+    // The server's clock: the challenge was shown after the token was issued, and the gesture
+    // took its own time; a person also needs to see the step and react.
+    if (
+      claims.ms !== undefined &&
+      Date.now() - claims.ms < gestureSpanMs(gesture) + MIN_REACTION_MS
+    )
+      return refused("too-fast");
+    // A hand never makes the same gesture twice: a recorded one plays once.
+    const print = await sha256Hex(gestureFingerprint(gesture));
+    if (!(await store.claim(`gesture:${print}`, 86_400))) return refused("replayed");
     const zone = claims.zone;
     // Where the handle ended, against the zone the server signed: never the page's own word.
     const inZone = (percent: number) =>
@@ -1050,11 +1106,16 @@ export function createNotabot(options: NotabotServerOptions): Notabot {
       const position = finite(body.position) ? body.position : Number.NaN;
       passed = judgeKeySlide(keyTimes ?? [], body.keysTrusted === true, inZone(position));
     }
-    if (!passed)
-      return {
-        status: 200,
-        body: { passed: false, verdict: claims.verdict, attemptsLeft: SLIDE_ATTEMPTS - attempt },
-      };
+    if (!passed) return refused("gesture");
+    // The model reads the gesture and the session; a confident "bot" turns a pass into a refusal,
+    // never the other way. Without an answer, the rules decide.
+    if (options.llm) {
+      const model = await askModel(
+        buildGesturePrompt(gestureFeatures(gesture, claims.session ?? null)),
+        GESTURE_PROMPT,
+      );
+      if (model !== null && model >= CONFIDENT_BOT) return refused("model");
+    }
     if (!(await store.claim(`token:slide:${claims.jti}`, lifetime(claims))))
       return fail(403, "replayed", "token already slid");
     const bot = Math.min(claims.bot, 0.3);

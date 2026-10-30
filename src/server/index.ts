@@ -124,6 +124,10 @@ export interface TokenClaims {
   targets?: [number, number][];
   /** Smart signals sealed by the server (visitor id, private mode, VM, VPN, Tor…). */
   smart?: SealedSignals;
+  /** When the token was issued, in milliseconds (tokens issued in doubt): /slide's clock. */
+  ms?: number;
+  /** The session's behaviour when the token was issued in doubt, for /slide's model. */
+  session?: Record<string, number | null>;
   /** Request flags /verify already counted in `bot`: the gate adds only the ones it sees anew. */
   seen?: string[];
 }

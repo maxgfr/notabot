@@ -89,4 +89,17 @@ describe("how the pointer arrives", () => {
     expect(judged.passed).toBe(false);
     expect(judgeSlide(hand(30), true).passed).toBe(true);
   });
+
+  test("tremor: a hand trembles around its path, a computed curve does not, however bent", () => {
+    expect(analyzeTrajectory(hand()).tremor).toBeGreaterThan(0.5);
+    expect(analyzeTrajectory(eased()).tremor).toBeLessThan(0.3);
+    expect(analyzeTrajectory(linear()).tremor).toBe(0);
+  });
+
+  test("a drag at pressure 0 comes from no browser, except a finger on some phones", () => {
+    const zero = hand(30).map((s) => ({ ...s, pressure: 0 }));
+    expect(judgeSlide(zero, true)).toMatchObject({ passed: false, reason: "untrusted" });
+    const touch = zero.map((s) => ({ ...s, pointerType: "touch" }));
+    expect(judgeSlide(touch, true).passed).toBe(true);
+  });
 });
