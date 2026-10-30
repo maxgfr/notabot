@@ -259,4 +259,14 @@ describe("what a patch cannot rename", () => {
     webgl(phone).renderMs = 120;
     expect(ids(score({ signals: phone }))).not.toContain("software-speed-gpu-name");
   });
+
+  test("SwiftShader's pixels under a graphics card's name", () => {
+    const s = realChrome();
+    webgl(s).sceneHash = "ad1abc1d";
+    expect(ids(score({ signals: s }))).toEqual(["software-scene-gpu-name"]);
+    // SwiftShader under its own name: software-renderer already says it.
+    const headless = headlessChromium();
+    webgl(headless).sceneHash = "ad1abc1d";
+    expect(ids(score({ signals: headless }))).not.toContain("software-scene-gpu-name");
+  });
 });

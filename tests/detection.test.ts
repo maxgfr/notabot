@@ -138,6 +138,22 @@ describe("JA4, JA4H, HTTP/2", () => {
     expect(out.flags).toContain("http2-settings-not-chromium");
     expect(out.ja4h.startsWith("ge20")).toBe(true);
   });
+
+  test("SETTINGS that are not Firefox's, from a client claiming Firefox", () => {
+    const FIREFOX =
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0";
+    const flagsWith = (http2Settings: object) => {
+      const info = infoFromRequest(req("/", { "user-agent": FIREFOX }));
+      return ids(requestFlags({ ...info, http2Settings }));
+    };
+    // As Firefox 157 and Camoufox sent them to node:http2; then curl's.
+    expect(
+      flagsWith({ headerTableSize: 65536, initialWindowSize: 131072, maxFrameSize: 16384 }),
+    ).not.toContain("http2-settings-not-firefox");
+    expect(
+      flagsWith({ headerTableSize: 4096, initialWindowSize: 10485760, maxFrameSize: 16384 }),
+    ).toContain("http2-settings-not-firefox");
+  });
 });
 
 describe("adaptive proof of work", () => {

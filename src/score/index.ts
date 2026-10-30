@@ -49,6 +49,12 @@ const MOBILE_UA = /Android|iPhone|iPod|Mobile/;
  * (Docker). Phones are left out: their GPUs range too widely.
  */
 const SOFTWARE_RENDER_MS = 50;
+/**
+ * The scene `collectWebGL` hashes, as software rasterizers draw it: their pixels do not depend on
+ * the machine. SwiftShader drew `ad1abc1d` in Chromium 148 and 156, on macOS arm64 and on Linux
+ * arm64 and x86-64, with its LLVM and its Subzero back end.
+ */
+export const SOFTWARE_SCENES: ReadonlySet<string> = new Set(["ad1abc1d"]);
 /** Words only Firefox's privileged code uses: a page's own APIs never fail with them. */
 const BROWSER_INTERNALS = /\bXrays?\b|Components\.(utils|classes|interfaces)|\bcloneInto\b/;
 const PRIVACY_TARGETS =
@@ -337,6 +343,20 @@ export const RULES: Rule[] = [
     explain:
       "WebGL and WebGPU name GPU makers that cannot share one machine: one of the two names was rewritten.",
     test: ({ signals }) => gpuVendorsDisagree(signals),
+  },
+  {
+    id: "software-scene-gpu-name",
+    category: "tampering",
+    weight: 0.7,
+    explain:
+      "WebGL names a graphics card, but its scene comes out pixel for pixel as SwiftShader draws it: the renderer's name was rewritten.",
+    test: ({ signals }) => {
+      const gl = signals.hardware.webgl;
+      if (!gl?.sceneHash || signals.automation.softwareRenderer) return null;
+      return SOFTWARE_SCENES.has(gl.sceneHash)
+        ? `scene ${gl.sceneHash} as ${(gl.unmaskedRenderer ?? gl.renderer).slice(0, 60)}`
+        : null;
+    },
   },
   {
     id: "software-speed-gpu-name",

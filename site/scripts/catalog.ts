@@ -246,6 +246,7 @@ export const GROUPS: Group[] = [
       },
       {
         id: "webglscene",
+        rules: ["software-scene-gpu-name"],
         label: { en: "WebGL scene", fr: "Scène WebGL" },
         reveals: {
           en: "A shader's pixels: the strings can be swapped, the output rarely.",
@@ -544,6 +545,8 @@ export const RULES_FR: Record<string, string> = {
     "WebGL tourne sur un rendu logiciel (SwiftShader, llvmpipe) : serveurs et headless, parfois des VM.",
   "software-speed-gpu-name":
     "WebGL nomme une carte graphique mais dessine à la vitesse d'un rendu logiciel : le nom a été réécrit, ou il n'y a pas de GPU.",
+  "software-scene-gpu-name":
+    "WebGL nomme une carte graphique, mais sa scène sort pixel pour pixel comme SwiftShader la dessine : le nom du renderer a été réécrit.",
   "implausible-hardware": "Un nombre de cœurs ou une mémoire qu'aucun appareil réel ne déclare.",
   "canvas-noise": "Le même dessin canvas se relit différemment : du bruit a été injecté.",
   "untrusted-events":
