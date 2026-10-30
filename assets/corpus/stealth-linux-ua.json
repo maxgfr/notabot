@@ -4,8 +4,8 @@
   "source": "Chromium, AutomationControlled off, Linux user agent",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-29T23:06:01.087Z",
-    "durationMs": 75,
+    "collectedAt": "2026-10-30T15:14:54.468Z",
+    "durationMs": 56,
     "env": {
       "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
       "uaData": {
@@ -50,7 +50,7 @@
       "connection": {
         "effectiveType": "4g",
         "rtt": 0,
-        "downlink": 9,
+        "downlink": 10,
         "saveData": false
       },
       "cookieEnabled": true,
@@ -92,7 +92,14 @@
         "persistent-storage": "prompt"
       },
       "evalLength": 33,
-      "errorFingerprint": "Cannot read properties of null (reading 'x')"
+      "errorFingerprint": "Cannot read properties of null (reading 'x')",
+      "appVersion": "5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+      "oscpu": null,
+      "screenMedia": {
+        "width": true,
+        "height": true,
+        "resolution": true
+      }
     },
     "hardware": {
       "canvas": {
@@ -165,7 +172,8 @@
       "deviceMemory": 16,
       "webdriver": false,
       "timezone": "Europe/Paris",
-      "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+      "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "appVersion": "5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
     },
     "iframe": {
       "snapshot": {
@@ -176,8 +184,10 @@
         "deviceMemory": 16,
         "webdriver": false,
         "timezone": "Europe/Paris",
-        "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+        "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+        "appVersion": "5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
       },
+      "missing": [],
       "mismatches": []
     },
     "worker": {
@@ -189,7 +199,8 @@
         "deviceMemory": 16,
         "webdriver": null,
         "timezone": "Europe/Paris",
-        "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+        "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+        "appVersion": "5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
       },
       "mismatches": []
     },
@@ -200,18 +211,19 @@
   },
   "behavior": {
     "samples": 27,
-    "durationMs": 422,
-    "speedMean": 2.401,
-    "speedCv": 1.036,
-    "accelCv": 2.319,
+    "durationMs": 447,
+    "speedMean": 1.729,
+    "speedCv": 0.326,
+    "accelCv": 2.626,
     "straightness": 1,
     "angleEntropy": 0.23,
     "jitter": 0,
     "stepCv": 0,
     "turnRate": 0,
-    "endSlowdown": 0.661,
+    "endSlowdown": 0.925,
     "overshoot": 0,
-    "sessionMs": 988,
+    "tremor": 0.55,
+    "sessionMs": 1004,
     "moves": 27,
     "clicks": 1,
     "keys": 15,
@@ -219,11 +231,11 @@
     "untrusted": 0,
     "inputWithoutKeys": 0,
     "focusChanges": 0,
-    "firstInteractionMs": 3,
+    "firstInteractionMs": 16,
     "coalescedMean": 1,
-    "keyDwellMean": 31,
-    "keyDwellCv": 0.009,
-    "keyFlightCv": 0.008,
+    "keyDwellMean": 32,
+    "keyDwellCv": 0.01,
+    "keyFlightCv": 0.019,
     "scrollCv": null,
     "pastes": 0,
     "honeypot": 0

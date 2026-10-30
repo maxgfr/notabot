@@ -37,6 +37,8 @@ const FR: Record<string, string> = {
     "Un Chromium sans les client hints sec-ch-ua qu'il envoie toujours.",
   "headless-client-hint": "Les marques sec-ch-ua nomment HeadlessChrome.",
   "client-hints-platform-mismatch": "sec-ch-ua-platform nomme un autre système que le User-Agent.",
+  "client-hints-version-mismatch":
+    "sec-ch-ua nomme une autre version de Chromium que le User-Agent.",
   "client-hints-mobile-mismatch": "sec-ch-ua-mobile contredit le User-Agent sur le mobile.",
   "missing-fetch-metadata": "Un navigateur moderne sans les en-têtes Sec-Fetch-*.",
   "http1-chromium": "Un Chromium en HTTP/1.x là où le vrai négocie HTTP/2 ou 3.",

@@ -15,6 +15,14 @@ function webglRenderer(make: () => HTMLCanvasElement | OffscreenCanvas | null): 
   }
 }
 
+function timeZoneOf(win: Realm): string | null {
+  try {
+    return new win.Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return null;
+  }
+}
+
 /** What a window (the page, or a fresh iframe) says about the browser. */
 export function snapshotOf(win: Realm): RealmSnapshot {
   const nav = win.navigator as Navigator & { deviceMemory?: number };
@@ -25,9 +33,24 @@ export function snapshotOf(win: Realm): RealmSnapshot {
     hardwareConcurrency: nav.hardwareConcurrency ?? null,
     deviceMemory: nav.deviceMemory ?? null,
     webdriver: typeof nav.webdriver === "boolean" ? nav.webdriver : null,
-    timezone: new win.Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezone: timeZoneOf(win),
     webglRenderer: webglRenderer(() => win.document.createElement("canvas")),
+    appVersion: nav.appVersion,
   };
+}
+
+/** Constructors every current engine puts in every realm. */
+const BUILTINS = ["DateTimeFormat", "NumberFormat", "Collator", "PluralRules"] as const;
+
+/**
+ * The built-ins `page` has and `win` lacks. A fresh realm is built by the engine itself: one
+ * missing what the page has was assembled by a patched browser (Camoufox leaves a fresh iframe's
+ * `Intl` empty), not by a stock one.
+ */
+export function missingBuiltins(win: Realm, page: Realm = window): string[] {
+  const has = (w: Realm, name: string) =>
+    typeof (w.Intl as unknown as Record<string, unknown> | undefined)?.[name] === "function";
+  return BUILTINS.filter((name) => has(page, name) && !has(win, name)).map((n) => `Intl.${n}`);
 }
 
 /** The fields of `other` that do not match the page's snapshot. */
@@ -36,7 +59,7 @@ export function compareSnapshots(page: RealmSnapshot, other: RealmSnapshot): str
   for (const key of Object.keys(page) as (keyof RealmSnapshot)[]) {
     // A field the other realm does not expose (a worker has no navigator.webdriver, and no
     // WebGL without OffscreenCanvas) is unknown there, not a lie.
-    if (other[key] === null) continue;
+    if (other[key] === null || other[key] === undefined) continue;
     if (JSON.stringify(page[key]) !== JSON.stringify(other[key])) out.push(key);
   }
   return out;
@@ -62,8 +85,11 @@ export async function withFreshFrame<T>(use: (win: Realm) => T | Promise<T>): Pr
 }
 
 export async function collectIframe(page: RealmSnapshot): Promise<RealmComparison | null> {
-  const snapshot = await withFreshFrame(snapshotOf);
-  return snapshot ? { snapshot, mismatches: compareSnapshots(page, snapshot) } : null;
+  const read = await withFreshFrame((win) => ({
+    snapshot: snapshotOf(win),
+    missing: missingBuiltins(win),
+  }));
+  return read ? { ...read, mismatches: compareSnapshots(page, read.snapshot) } : null;
 }
 
 const WORKER_SOURCE = `
@@ -83,6 +109,7 @@ postMessage({
   webdriver: typeof n.webdriver === "boolean" ? n.webdriver : null,
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   webglRenderer,
+  appVersion: n.appVersion,
 });`;
 
 /** The same questions asked from a Web Worker, which page-level patches rarely reach. */

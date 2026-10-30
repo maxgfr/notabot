@@ -29,7 +29,7 @@ const shape =
   (v) =>
     isObject(v) && Object.entries(spec).every(([k, check]) => check(v[k]));
 
-const realm = shape({ mismatches: strings });
+const realm = shape({ mismatches: strings, missing: optional(strings) });
 
 const SIGNALS = shape({
   durationMs: num,
@@ -50,6 +50,9 @@ const SIGNALS = shape({
     cookieEnabled: bool,
     codecs: object,
     mediaDevices: orNull(object),
+    appVersion: optional(str()),
+    oscpu: optional(orNull(str(256))),
+    screenMedia: optional(object),
   }),
   hardware: shape({
     canvas: orNull(shape({ stable: bool })),

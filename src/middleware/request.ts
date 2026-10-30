@@ -213,6 +213,18 @@ export const REQUEST_RULES: RequestRule[] = [
     },
   },
   {
+    id: "client-hints-version-mismatch",
+    weight: 0.6,
+    explain: "sec-ch-ua names another Chromium version than the User-Agent.",
+    test: (i) => {
+      const hinted = /"Chromium";\s*v="(\d+)"/.exec(header(i, "sec-ch-ua"))?.[1];
+      const v = chromiumVersion(header(i, "user-agent"));
+      return hinted && v !== null && Number(hinted) !== v
+        ? `Chrome/${v} vs Chromium ${hinted}`
+        : null;
+    },
+  },
+  {
     id: "client-hints-mobile-mismatch",
     weight: 0.5,
     explain: "sec-ch-ua-mobile disagrees with the User-Agent about being a phone.",

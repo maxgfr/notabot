@@ -101,6 +101,18 @@ describe("request analysis", () => {
     );
   });
 
+  test("a User-Agent overridden without its sec-ch-ua", () => {
+    const flagsOf = (secChUa: string) =>
+      ids(requestFlags(infoFromRequest(req("/", chromeHeaders(UA, { "sec-ch-ua": secChUa })))));
+    const v = /Chrome\/(\d+)/.exec(UA)?.[1];
+    expect(flagsOf(`"Chromium";v="${Number(v) + 14}", "Not_A Brand";v="99"`)).toContain(
+      "client-hints-version-mismatch",
+    );
+    expect(flagsOf(`"Chromium";v="${v}", "Google Chrome";v="${v}"`)).not.toContain(
+      "client-hints-version-mismatch",
+    );
+  });
+
   test("protocol and network, when the platform reports them", () => {
     const info = infoFromRequest(req("/", chromeHeaders(UA)), {
       httpVersion: "1.1",

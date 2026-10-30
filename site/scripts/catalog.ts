@@ -44,6 +44,7 @@ export const GROUPS: Group[] = [
           "engine-mismatch",
           "mobile-without-touch",
           "chrome-object-missing",
+          "ua-version-mismatch",
         ],
         label: { en: "User agent", fr: "User agent" },
         reveals: {
@@ -55,7 +56,7 @@ export const GROUPS: Group[] = [
       },
       {
         id: "uadata",
-        rules: ["headless-brand", "os-mismatch"],
+        rules: ["headless-brand", "os-mismatch", "ua-version-mismatch"],
         label: { en: "Client hints", fr: "Client hints" },
         reveals: {
           en: "The same claims in structured form, with model and architecture.",
@@ -147,6 +148,7 @@ export const GROUPS: Group[] = [
     fields: [
       {
         id: "screen",
+        rules: ["screen-media-mismatch"],
         label: { en: "Screen", fr: "Écran" },
         reveals: {
           en: "Display size, density and colour depth.",
@@ -206,6 +208,7 @@ export const GROUPS: Group[] = [
       },
       {
         id: "webgpu",
+        rules: ["gpu-vendor-mismatch"],
         label: { en: "WebGPU adapter", fr: "Adaptateur WebGPU" },
         reveals: {
           en: "GPU vendor and architecture, by the newer API.",
@@ -253,6 +256,7 @@ export const GROUPS: Group[] = [
       },
       {
         id: "audio",
+        rules: ["browser-internals-exposed"],
         label: { en: "Audio", fr: "Audio" },
         reveals: {
           en: "An oscillator through a compressor, rendered offline.",
@@ -266,6 +270,7 @@ export const GROUPS: Group[] = [
       },
       {
         id: "fonts",
+        rules: ["fonts-os-mismatch"],
         label: { en: "Fonts", fr: "Polices" },
         reveals: {
           en: "Installed fonts, found by measuring text.",
@@ -455,7 +460,7 @@ export const GROUPS: Group[] = [
       },
       {
         id: "iframe",
-        rules: ["iframe-mismatch"],
+        rules: ["iframe-mismatch", "fresh-realm-incomplete"],
         label: { en: "Fresh iframe", fr: "Iframe neuve" },
         reveals: {
           en: "Same questions in a new realm: any difference is a patch.",
@@ -506,10 +511,22 @@ export const RULES_FR: Record<string, string> = {
     "Function.prototype.toString lui-même a été remplacé, pour faire passer des fonctions patchées pour natives.",
   "iframe-mismatch":
     "Une iframe neuve répond autrement que la page : la page a été patchée, pas le nouveau domaine.",
+  "fresh-realm-incomplete":
+    "Une iframe neuve n'a pas les objets natifs de la page (les constructeurs d'Intl) : le navigateur qui l'a construite a été modifié à la source.",
+  "browser-internals-exposed":
+    "Une API de la page a échoué avec une erreur du code privilégié du navigateur (Xrays, Components) : sa réponse venait d'un patch interne.",
+  "screen-media-mismatch":
+    "Les media queries CSS voient une autre taille d'écran ou densité que JavaScript : l'une des deux a été réécrite.",
   "worker-mismatch": "Un Web Worker répond autrement que la page.",
   "engine-mismatch": "Le user agent annonce un moteur, le JavaScript en révèle un autre.",
   "os-mismatch":
-    "Le user agent, navigator.platform, userAgentData et le GPU nomment des systèmes différents.",
+    "Le user agent, navigator.platform, appVersion, oscpu, userAgentData et le GPU nomment des systèmes différents.",
+  "fonts-os-mismatch":
+    "Aucune police propre au système annoncé n'est installée, et celles d'un autre le sont : le user agent nomme un système que la machine n'est pas.",
+  "ua-version-mismatch":
+    "Le user agent nomme une autre version de Chrome que les marques de userAgentData : il a été remplacé.",
+  "gpu-vendor-mismatch":
+    "WebGL et WebGPU nomment des fabricants de GPU qu'une même machine ne peut pas avoir : l'un des deux noms a été réécrit.",
   "timezone-mismatch":
     "Le nom du fuseau et le décalage de l'horloge ne concordent pas : l'un des deux a été forcé.",
   "mobile-without-touch": "Un user agent de téléphone sur un écran sans tactile.",
