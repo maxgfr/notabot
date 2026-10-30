@@ -4,8 +4,8 @@
   "source": "Playwright Chromium, new headless",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-30T15:14:53.193Z",
-    "durationMs": 32,
+    "collectedAt": "2026-10-30T15:40:09.188Z",
+    "durationMs": 52,
     "env": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
       "uaData": {
@@ -46,7 +46,7 @@
       "connection": {
         "effectiveType": "4g",
         "rtt": 100,
-        "downlink": 1.55,
+        "downlink": 1.6,
         "saveData": false
       },
       "cookieEnabled": true,
@@ -111,7 +111,8 @@
         "shadingLanguage": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
         "maxTextureSize": 16384,
         "extensions": 39,
-        "sceneHash": "redacted"
+        "sceneHash": "redacted",
+        "renderMs": 3.2
       },
       "webgpu": {
         "vendor": "apple",
@@ -210,19 +211,19 @@
   },
   "behavior": {
     "samples": 27,
-    "durationMs": 464,
-    "speedMean": 1.598,
-    "speedCv": 0.258,
-    "accelCv": 2.808,
+    "durationMs": 408,
+    "speedMean": 2.912,
+    "speedCv": 1.699,
+    "accelCv": 4.436,
     "straightness": 1,
     "angleEntropy": 0.23,
     "jitter": 0,
     "stepCv": 0,
     "turnRate": 0,
-    "endSlowdown": 0.904,
+    "endSlowdown": 0.552,
     "overshoot": 0,
     "tremor": 0.55,
-    "sessionMs": 992,
+    "sessionMs": 961,
     "moves": 27,
     "clicks": 1,
     "keys": 15,
@@ -230,11 +231,11 @@
     "untrusted": 0,
     "inputWithoutKeys": 0,
     "focusChanges": 0,
-    "firstInteractionMs": 19,
+    "firstInteractionMs": 6,
     "coalescedMean": 1,
-    "keyDwellMean": 31,
-    "keyDwellCv": 0.02,
-    "keyFlightCv": 0.023,
+    "keyDwellMean": 32,
+    "keyDwellCv": 0.017,
+    "keyFlightCv": 0.043,
     "scrollCv": null,
     "pastes": 0,
     "honeypot": 0

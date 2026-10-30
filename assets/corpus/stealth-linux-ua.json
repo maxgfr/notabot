@@ -4,8 +4,8 @@
   "source": "Chromium, AutomationControlled off, Linux user agent",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-30T15:14:54.468Z",
-    "durationMs": 56,
+    "collectedAt": "2026-10-30T15:40:10.594Z",
+    "durationMs": 131,
     "env": {
       "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
       "uaData": {
@@ -50,7 +50,7 @@
       "connection": {
         "effectiveType": "4g",
         "rtt": 0,
-        "downlink": 10,
+        "downlink": 9.3,
         "saveData": false
       },
       "cookieEnabled": true,
@@ -115,7 +115,8 @@
         "shadingLanguage": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
         "maxTextureSize": 8192,
         "extensions": 35,
-        "sceneHash": "redacted"
+        "sceneHash": "redacted",
+        "renderMs": 19.7
       },
       "webgpu": null,
       "audio": {
@@ -211,19 +212,19 @@
   },
   "behavior": {
     "samples": 27,
-    "durationMs": 447,
-    "speedMean": 1.729,
-    "speedCv": 0.326,
-    "accelCv": 2.626,
+    "durationMs": 503,
+    "speedMean": 2.564,
+    "speedCv": 1.921,
+    "accelCv": 4.533,
     "straightness": 1,
     "angleEntropy": 0.23,
     "jitter": 0,
     "stepCv": 0,
     "turnRate": 0,
-    "endSlowdown": 0.925,
+    "endSlowdown": 0.602,
     "overshoot": 0,
     "tremor": 0.55,
-    "sessionMs": 1004,
+    "sessionMs": 1126,
     "moves": 27,
     "clicks": 1,
     "keys": 15,
@@ -231,11 +232,11 @@
     "untrusted": 0,
     "inputWithoutKeys": 0,
     "focusChanges": 0,
-    "firstInteractionMs": 16,
+    "firstInteractionMs": 18,
     "coalescedMean": 1,
     "keyDwellMean": 32,
-    "keyDwellCv": 0.01,
-    "keyFlightCv": 0.019,
+    "keyDwellCv": 0.022,
+    "keyFlightCv": 0.025,
     "scrollCv": null,
     "pastes": 0,
     "honeypot": 0

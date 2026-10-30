@@ -32,7 +32,7 @@ notabot does that part in the open:
 | **Lies**              | native getters and functions that no longer look native (judged with a clean realm's `toString`), a redefined `webdriver`, a patched `Function.prototype.toString`                                                                                                          |
 | **Second opinions**   | the same questions asked from a fresh iframe and a Web Worker, which stealth layers forget; a fresh iframe missing built-ins its page has; an error from the browser's privileged code                                                                                      |
 | **Consistency**       | OS named by the user agent vs platform, `appVersion`, `oscpu`, client hints, GPU and installed fonts; Chrome version vs brands; WebGL vs WebGPU maker; CSS vs JS screen; time zone name vs clock offset; engine claimed vs `eval.toString().length`; phone UA without touch |
-| **Hardware prints**   | canvas (read twice, to spot injected noise), WebGL strings and a rendered scene, offline audio, fonts, WebGPU                                                                                                                                                               |
+| **Hardware prints**   | canvas (read twice, to spot injected noise), WebGL strings, a rendered scene and how fast a costly shader draws (a software rasterizer behind a card's name), offline audio, fonts, WebGPU                                                                                  |
 | **Behaviour**         | pointer speed, step and wobble, how it arrives (slowing down, correcting, overshooting), `isTrusted`, coalesced samples, key dwell and flight, paste vs typing, scroll cadence, a honeypot                                                                                  |
 | **Proof of work**     | SHA-256 puzzle in a Web Worker, ALTCHA-style, signed by your server when you have one                                                                                                                                                                                       |
 | **AI officer**        | optional: a small model reads the features and gives a verdict, blended with the rules                                                                                                                                                                                      |
@@ -227,38 +227,38 @@ The scores below use the correlation-capped combination described above.
 | Classifier                          | Humans passed | Humans challenged | Humans refused | Bots refused | Bots challenged | Bots passed |
 | ----------------------------------- | ------------- | ----------------- | -------------- | ------------ | --------------- | ----------- |
 | Rules alone                         | 13/13         | 0                 | 0              | 11/13        | 2               | 0           |
-| Logistic regression (leave-one-out) | 13/13         | 0                 | 0              | 8/13         | 2               | 3           |
+| Logistic regression (leave-one-out) | 13/13         | 0                 | 0              | 9/13         | 2               | 2           |
 
 26 samples: 12 human profiles built from documented setups, 1 real browser captured by hand, 13 automated browsers captured by `scripts/capture.ts`. Bot probability per sample:
 
 | Sample                                | Label | Rules | Regression |
 | ------------------------------------- | ----- | ----- | ---------- |
-| chrome-mac                            | human | 0.00  | 0.14       |
-| keyboard-only                         | human | 0.00  | 0.14       |
-| screen-reader                         | human | 0.00  | 0.14       |
-| privacy-extension                     | human | 0.28  | 0.10       |
+| chrome-mac                            | human | 0.00  | 0.13       |
+| keyboard-only                         | human | 0.00  | 0.13       |
+| screen-reader                         | human | 0.00  | 0.13       |
+| privacy-extension                     | human | 0.28  | 0.09       |
 | brave                                 | human | 0.00  | 0.08       |
-| safari                                | human | 0.00  | 0.14       |
+| safari                                | human | 0.00  | 0.13       |
 | firefox-rfp                           | human | 0.10  | 0.05       |
-| firefox-mac                           | human | 0.00  | 0.14       |
+| firefox-mac                           | human | 0.00  | 0.13       |
 | firefox-strict                        | human | 0.00  | 0.08       |
-| firefox-linux                         | human | 0.00  | 0.14       |
-| chrome-windows                        | human | 0.00  | 0.14       |
-| android-chrome                        | human | 0.00  | 0.33       |
-| brave-automated                       | bot   | 0.95  | 0.14       |
-| camoufox-linux                        | bot   | 0.83  | 0.37       |
-| camoufox-macos                        | bot   | 0.94  | 0.95       |
-| camoufox-windows                      | bot   | 0.94  | 0.95       |
-| chrome-automated                      | bot   | 0.99  | 1.00       |
-| chrome-headed-hidden                  | bot   | 0.50  | 0.20       |
-| firefox-automated                     | bot   | 0.98  | 0.29       |
-| headless-new                          | bot   | 0.99  | 1.00       |
-| headless-shell                        | bot   | 0.99  | 1.00       |
-| human-brave-156-on-macos-real-profile | human | 0.00  | 0.34       |
+| firefox-linux                         | human | 0.00  | 0.13       |
+| chrome-windows                        | human | 0.00  | 0.13       |
+| android-chrome                        | human | 0.00  | 0.23       |
+| brave-automated                       | bot   | 0.95  | 0.19       |
+| camoufox-linux                        | bot   | 0.83  | 0.38       |
+| camoufox-macos                        | bot   | 0.94  | 0.94       |
+| camoufox-windows                      | bot   | 0.94  | 0.94       |
+| chrome-automated                      | bot   | 0.99  | 0.99       |
+| chrome-headed-hidden                  | bot   | 0.50  | 0.24       |
+| firefox-automated                     | bot   | 0.98  | 0.92       |
+| headless-new                          | bot   | 0.99  | 0.99       |
+| headless-shell                        | bot   | 0.99  | 0.99       |
+| human-brave-156-on-macos-real-profile | human | 0.00  | 0.32       |
 | patchright-headed                     | bot   | 0.69  | 0.87       |
-| spoofed-windows-ua                    | bot   | 0.99  | 0.58       |
-| stealth-js-layer                      | bot   | 1.00  | 0.97       |
-| stealth-linux-ua                      | bot   | 1.00  | 1.00       |
+| spoofed-windows-ua                    | bot   | 0.99  | 0.67       |
+| stealth-js-layer                      | bot   | 1.00  | 0.98       |
+| stealth-linux-ua                      | bot   | 0.99  | 0.99       |
 <!-- bench:end -->
 
 Read it for what it is. A headed Chrome with `AutomationControlled` off, which FingerprintJS's
@@ -268,6 +268,16 @@ metronome's pace, which `robotic-pointer` and `robotic-typing` read). Patchright
 Camoufox is refused on its own seams (an empty `Intl` in a fresh iframe, an audio read failing
 with Firefox's privileged error), so its human-like cursor no longer gets it through. A bot
 without such a seam that moves and types like a person would pass all of it.
+
+What a patch cannot rename was measured too. A costly shader (`renderMs`) takes a graphics card
+0 to 2 ms in Chrome, Firefox and Safari's engine, SwiftShader 18 ms on ten cores and 64 to 77 ms
+on two (Docker): WebGL naming a card at a software rasterizer's speed raises
+`software-speed-gpu-name`, weak, the threshold provisional. The real core count was tried and
+left out: workers running at once in 40 ms windows read 2.9 to 4.7 of ten cores on a Mac whose
+efficiency cores run slower, and 1.5 to 3 in Docker limited to two CPUs claiming ten or sixteen,
+too close to tell apart without challenging people. Camoufox in a container without a GPU has no
+WebGL at all.
+
 The real Brave (farbled canvas, audio and core count, its own WebGL renderer name) raises no
 rule. An AI agent driving that same Brave through a browser extension is called human too: the
 slider refused its straight drag, and the targets now refuse clicks that jump onto each target.

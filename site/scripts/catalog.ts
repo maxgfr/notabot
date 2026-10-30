@@ -194,7 +194,7 @@ export const GROUPS: Group[] = [
       },
       {
         id: "gpu",
-        rules: ["software-renderer", "os-mismatch"],
+        rules: ["software-renderer", "software-speed-gpu-name", "os-mismatch"],
         label: { en: "Graphics card", fr: "Carte graphique" },
         reveals: {
           en: "Your GPU by name through WebGL; SwiftShader or llvmpipe mean software rendering.",
@@ -542,6 +542,8 @@ export const RULES_FR: Record<string, string> = {
     "Notification.permission dit denied, l'API Permissions dit prompt : une bizarrerie headless.",
   "software-renderer":
     "WebGL tourne sur un rendu logiciel (SwiftShader, llvmpipe) : serveurs et headless, parfois des VM.",
+  "software-speed-gpu-name":
+    "WebGL nomme une carte graphique mais dessine à la vitesse d'un rendu logiciel : le nom a été réécrit, ou il n'y a pas de GPU.",
   "implausible-hardware": "Un nombre de cœurs ou une mémoire qu'aucun appareil réel ne déclare.",
   "canvas-noise": "Le même dessin canvas se relit différemment : du bruit a été injecté.",
   "untrusted-events":

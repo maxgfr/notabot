@@ -4,8 +4,8 @@
   "source": "Patchright (Playwright patched against its CDP leaks), Chromium, headed",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-30T15:15:04.071Z",
-    "durationMs": 28,
+    "collectedAt": "2026-10-30T15:40:20.183Z",
+    "durationMs": 48,
     "env": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
       "uaData": {
@@ -111,7 +111,8 @@
         "shadingLanguage": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
         "maxTextureSize": 16384,
         "extensions": 39,
-        "sceneHash": "redacted"
+        "sceneHash": "redacted",
+        "renderMs": 0.9
       },
       "webgpu": {
         "vendor": "apple",
@@ -210,19 +211,19 @@
   },
   "behavior": {
     "samples": 27,
-    "durationMs": 245,
-    "speedMean": 4.205,
-    "speedCv": 1.128,
-    "accelCv": 4.069,
+    "durationMs": 260,
+    "speedMean": 4.462,
+    "speedCv": 1.073,
+    "accelCv": 3.919,
     "straightness": 1,
     "angleEntropy": 0.23,
     "jitter": 0,
     "stepCv": 0,
     "turnRate": 0,
-    "endSlowdown": 0.975,
+    "endSlowdown": 0.895,
     "overshoot": 0,
     "tremor": 0.55,
-    "sessionMs": 751,
+    "sessionMs": 793,
     "moves": 27,
     "clicks": 1,
     "keys": 15,
@@ -230,11 +231,11 @@
     "untrusted": 0,
     "inputWithoutKeys": 0,
     "focusChanges": 0,
-    "firstInteractionMs": 7,
+    "firstInteractionMs": 6,
     "coalescedMean": 1,
     "keyDwellMean": 31,
-    "keyDwellCv": 0.014,
-    "keyFlightCv": 0.015,
+    "keyDwellCv": 0.01,
+    "keyFlightCv": 0.017,
     "scrollCv": null,
     "pastes": 0,
     "honeypot": 0

@@ -43,6 +43,12 @@ export const THRESHOLDS = { bot: 0.8, unsure: 0.35 } as const;
 
 const DEVICE_MEMORY = new Set([0.25, 0.5, 1, 2, 4, 8, 16, 32]);
 const MOBILE_UA = /Android|iPhone|iPod|Mobile/;
+/**
+ * From `renderMs`'s shader, provisional (few machines): an Apple GPU drew it in 0 to 2 ms in
+ * Chrome, Firefox and Safari's engine; SwiftShader in 18 ms on ten cores, 64 to 77 ms on two
+ * (Docker). Phones are left out: their GPUs range too widely.
+ */
+const SOFTWARE_RENDER_MS = 50;
 /** Words only Firefox's privileged code uses: a page's own APIs never fail with them. */
 const BROWSER_INTERNALS = /\bXrays?\b|Components\.(utils|classes|interfaces)|\bcloneInto\b/;
 const PRIVACY_TARGETS =
@@ -331,6 +337,23 @@ export const RULES: Rule[] = [
     explain:
       "WebGL and WebGPU name GPU makers that cannot share one machine: one of the two names was rewritten.",
     test: ({ signals }) => gpuVendorsDisagree(signals),
+  },
+  {
+    id: "software-speed-gpu-name",
+    category: "hardware",
+    // Below the extra step alone: a slow card is not a lie.
+    weight: 0.3,
+    explain:
+      "WebGL names a graphics card but draws at a software rasterizer's speed: the name was rewritten, or there is no GPU.",
+    test: ({ signals }) => {
+      const gl = signals.hardware.webgl;
+      const ms = gl?.renderMs;
+      if (typeof ms !== "number" || signals.automation.softwareRenderer) return null;
+      if (MOBILE_UA.test(signals.env.userAgent)) return null;
+      return ms >= SOFTWARE_RENDER_MS
+        ? `${ms} ms as ${(gl?.unmaskedRenderer ?? gl?.renderer ?? "").slice(0, 60)}`
+        : null;
+    },
   },
   {
     id: "timezone-mismatch",

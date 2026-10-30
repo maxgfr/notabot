@@ -4,8 +4,8 @@
   "source": "Camoufox, headless, a generated Windows fingerprint on a Mac",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-30T15:15:17.677Z",
-    "durationMs": 118,
+    "collectedAt": "2026-10-30T15:40:31.205Z",
+    "durationMs": 121,
     "env": {
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0",
       "uaData": null,
@@ -18,10 +18,10 @@
       "timezoneOffsetFromName": -60,
       "intlLocale": "en-US",
       "screen": {
-        "width": 1680,
-        "height": 1050,
-        "availWidth": 1680,
-        "availHeight": 1010,
+        "width": 1920,
+        "height": 1080,
+        "availWidth": 1920,
+        "availHeight": 1032,
         "colorDepth": 24,
         "pixelRatio": 1
       },
@@ -64,7 +64,7 @@
       "mediaDevices": {
         "audioinput": 1,
         "audiooutput": 0,
-        "videoinput": 0
+        "videoinput": 1
       },
       "permissions": {
         "notifications": "prompt",
@@ -92,12 +92,13 @@
         "version": "WebGL 1.0",
         "vendor": "Mozilla",
         "renderer": "Apple M1, or similar",
-        "unmaskedVendor": "Google Inc. (NVIDIA)",
-        "unmaskedRenderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar",
+        "unmaskedVendor": "Google Inc. (AMD)",
+        "unmaskedRenderer": "ANGLE (AMD, Radeon R9 200 Series Direct3D11 vs_5_0 ps_5_0), or similar",
         "shadingLanguage": "WebGL GLSL ES 1.0",
         "maxTextureSize": 16384,
         "extensions": 27,
-        "sceneHash": "redacted"
+        "sceneHash": "redacted",
+        "renderMs": 0
       },
       "webgpu": null,
       "audio": null,
@@ -146,7 +147,7 @@
       "deviceMemory": null,
       "webdriver": false,
       "timezone": "Europe/Paris",
-      "webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar",
+      "webglRenderer": "ANGLE (AMD, Radeon R9 200 Series Direct3D11 vs_5_0 ps_5_0), or similar",
       "appVersion": "5.0 (Windows)"
     },
     "iframe": {
@@ -158,7 +159,7 @@
         "deviceMemory": null,
         "webdriver": false,
         "timezone": null,
-        "webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar",
+        "webglRenderer": "ANGLE (AMD, Radeon R9 200 Series Direct3D11 vs_5_0 ps_5_0), or similar",
         "appVersion": "5.0 (Windows)"
       },
       "missing": ["Intl.DateTimeFormat", "Intl.NumberFormat", "Intl.Collator", "Intl.PluralRules"],
@@ -173,7 +174,7 @@
         "deviceMemory": null,
         "webdriver": null,
         "timezone": "Europe/Paris",
-        "webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar",
+        "webglRenderer": "ANGLE (AMD, Radeon R9 200 Series Direct3D11 vs_5_0 ps_5_0), or similar",
         "appVersion": "5.0 (Windows)"
       },
       "mismatches": []
@@ -187,19 +188,19 @@
   },
   "behavior": {
     "samples": 26,
-    "durationMs": 180,
-    "speedMean": 10.747,
-    "speedCv": 0.901,
-    "accelCv": 1.326,
+    "durationMs": 165,
+    "speedMean": 14.315,
+    "speedCv": 0.74,
+    "accelCv": 1.44,
     "straightness": 1,
     "angleEntropy": 0.239,
     "jitter": 0.14,
     "stepCv": 0.025,
     "turnRate": 0,
-    "endSlowdown": 1.895,
+    "endSlowdown": 1.241,
     "overshoot": 0,
     "tremor": 1.14,
-    "sessionMs": 1998,
+    "sessionMs": 1024,
     "moves": 26,
     "clicks": 1,
     "keys": 16,
@@ -207,11 +208,11 @@
     "untrusted": 0,
     "inputWithoutKeys": 0,
     "focusChanges": 0,
-    "firstInteractionMs": 41,
+    "firstInteractionMs": 3,
     "coalescedMean": 1,
-    "keyDwellMean": 52,
-    "keyDwellCv": 0.426,
-    "keyFlightCv": 0.949,
+    "keyDwellMean": 50,
+    "keyDwellCv": 0.698,
+    "keyFlightCv": 0.551,
     "scrollCv": null,
     "pastes": 0,
     "honeypot": 0
