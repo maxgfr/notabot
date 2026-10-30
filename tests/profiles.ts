@@ -158,6 +158,7 @@ function safari(): Profile {
   // "Apple GPU" renderer, and eval.toString() of 37 characters.
   const s = realChrome();
   s.env.userAgent = SAFARI_UA;
+  s.env.appVersion = SAFARI_UA.slice("Mozilla/".length);
   s.env.uaData = null;
   s.env.vendor = "Apple Computer, Inc.";
   s.env.deviceMemory = null;
@@ -183,7 +184,13 @@ function safari(): Profile {
     engineObserved: "gecko-or-webkit",
     chromeObjectMissing: false,
   };
-  s.page = { ...s.page, userAgent: SAFARI_UA, deviceMemory: null, hardwareConcurrency: 8 };
+  s.page = {
+    ...s.page,
+    userAgent: SAFARI_UA,
+    appVersion: s.env.appVersion,
+    deviceMemory: null,
+    hardwareConcurrency: 8,
+  };
   if (s.iframe) s.iframe.snapshot = { ...s.page };
   if (s.worker) s.worker.snapshot = { ...s.page };
   return { id: "safari", note: "Safari 18 on a Mac.", signals: s, behavior: HAND };
@@ -196,6 +203,8 @@ function firefoxResistFingerprinting(): Profile {
   // renderer, a randomised canvas read.
   const s = realChrome();
   s.env.userAgent = FIREFOX_UA;
+  s.env.appVersion = "5.0 (X11)";
+  s.env.oscpu = "Linux x86_64";
   s.env.uaData = null;
   s.env.platform = "Linux x86_64";
   s.env.vendor = "";
@@ -243,6 +252,7 @@ function firefoxResistFingerprinting(): Profile {
   s.page = {
     ...s.page,
     userAgent: FIREFOX_UA,
+    appVersion: "5.0 (X11)",
     platform: "Linux x86_64",
     languages: ["en-US", "en"],
     hardwareConcurrency: 2,
@@ -276,7 +286,10 @@ function firefoxOn(
   fonts: string[],
 ): NotabotSignals {
   const s = realChrome();
+  const mac = platform === "MacIntel";
   s.env.userAgent = ua;
+  s.env.appVersion = mac ? "5.0 (Macintosh)" : "5.0 (X11)";
+  s.env.oscpu = mac ? "Intel Mac OS X 10.15" : platform;
   s.env.uaData = null;
   s.env.platform = platform;
   s.env.vendor = "";
@@ -301,7 +314,14 @@ function firefoxOn(
     engineObserved: "gecko-or-webkit",
     chromeObjectMissing: false,
   };
-  s.page = { ...s.page, userAgent: ua, platform, deviceMemory: null, webglRenderer: renderer };
+  s.page = {
+    ...s.page,
+    userAgent: ua,
+    appVersion: s.env.appVersion,
+    platform,
+    deviceMemory: null,
+    webglRenderer: renderer,
+  };
   if (s.iframe) s.iframe.snapshot = { ...s.page };
   if (s.worker) s.worker.snapshot = { ...s.page };
   return s;
@@ -355,6 +375,7 @@ function chromeWindows(): Profile {
   const renderer =
     "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002504) Direct3D11 vs_5_0 ps_5_0, D3D11)";
   s.env.userAgent = WINDOWS_UA;
+  s.env.appVersion = WINDOWS_UA.slice("Mozilla/".length);
   s.env.uaData = {
     brands: ["Chromium 142", "Google Chrome 142", "Not_A Brand 99"],
     mobile: false,
@@ -382,7 +403,13 @@ function chromeWindows(): Profile {
   };
   s.hardware.webgpu = { vendor: "nvidia", architecture: "ampere" };
   s.hardware.fonts = ["Arial", "Calibri", "Cambria", "Consolas", "Segoe UI", "Tahoma", "Verdana"];
-  s.page = { ...s.page, userAgent: WINDOWS_UA, platform: "Win32", webglRenderer: renderer };
+  s.page = {
+    ...s.page,
+    userAgent: WINDOWS_UA,
+    appVersion: s.env.appVersion,
+    platform: "Win32",
+    webglRenderer: renderer,
+  };
   if (s.iframe) s.iframe.snapshot = { ...s.page };
   if (s.worker) s.worker.snapshot = { ...s.page };
   return {
@@ -400,6 +427,7 @@ function mobile(): Profile {
   // Chrome on Android: touch, no plugins, a phone screen, an Adreno GPU, no pointer moves.
   const s = realChrome();
   s.env.userAgent = ANDROID_UA;
+  s.env.appVersion = ANDROID_UA.slice("Mozilla/".length);
   s.env.uaData = {
     brands: ["Chromium 142", "Google Chrome 142", "Not_A Brand 99"],
     mobile: true,
@@ -434,6 +462,7 @@ function mobile(): Profile {
   s.page = {
     ...s.page,
     userAgent: ANDROID_UA,
+    appVersion: s.env.appVersion,
     platform: "Linux armv81",
     hardwareConcurrency: 8,
     deviceMemory: 4,

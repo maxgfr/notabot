@@ -24,12 +24,12 @@ export async function collect(options: CollectOptions = {}): Promise<NotabotSign
   const budget = options.timeoutMs ?? 2000;
   const errors: Record<string, string> = {};
   async function safe<T>(name: string, run: () => T | Promise<T>, fallback: T): Promise<T> {
-    try {
-      return await withTimeout(Promise.resolve().then(run), budget, fallback);
-    } catch (e) {
+    // withTimeout turns a rejection into the fallback: note its error first.
+    const running = Promise.resolve().then(run);
+    running.catch((e) => {
       errors[name] = errorMessage(e);
-      return fallback;
-    }
+    });
+    return withTimeout(running, budget, fallback);
   }
 
   const env = await safe("env", collectEnv, null);

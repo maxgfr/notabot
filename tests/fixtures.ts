@@ -12,6 +12,7 @@ const page: RealmSnapshot = {
   webdriver: false,
   timezone: "Europe/Paris",
   webglRenderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)",
+  appVersion: CHROME_UA.slice("Mozilla/".length),
 };
 
 /** A real desktop Chrome on a Mac, as collect() reads it. */
@@ -61,6 +62,9 @@ export function realChrome(): NotabotSignals {
       permissions: { notifications: "prompt", geolocation: "prompt" },
       evalLength: 33,
       errorFingerprint: "Cannot read properties of null (reading 'x')",
+      appVersion: CHROME_UA.slice("Mozilla/".length),
+      oscpu: null,
+      screenMedia: { width: true, height: true, resolution: true },
     },
     hardware: {
       canvas: { hash: "1a2b3c4d", stable: true },

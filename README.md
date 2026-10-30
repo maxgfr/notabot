@@ -25,17 +25,17 @@ then go to a model that scores the session, and only a doubtful one gets a test.
 
 notabot does that part in the open:
 
-| Layer                 | What it checks                                                                                                                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Declared identity** | user agent, client hints, platform, languages, time zone, screen, cores, memory                                                                                                            |
-| **Automation tells**  | `navigator.webdriver`, HeadlessChrome brands, Selenium / Playwright / Puppeteer / PhantomJS globals, plugins, `window.chrome`, notification permission quirk, zero-size window             |
-| **Lies**              | native getters and functions that no longer look native (judged with a clean realm's `toString`), a redefined `webdriver`, a patched `Function.prototype.toString`                         |
-| **Second opinions**   | the same questions asked from a fresh iframe and a Web Worker, which stealth layers forget                                                                                                 |
-| **Consistency**       | OS named by the user agent vs platform vs client hints vs GPU, engine claimed vs `eval.toString().length`, time zone name vs clock offset, phone UA without touch                          |
-| **Hardware prints**   | canvas (read twice, to spot injected noise), WebGL strings and a rendered scene, offline audio, fonts, WebGPU                                                                              |
-| **Behaviour**         | pointer speed, step and wobble, how it arrives (slowing down, correcting, overshooting), `isTrusted`, coalesced samples, key dwell and flight, paste vs typing, scroll cadence, a honeypot |
-| **Proof of work**     | SHA-256 puzzle in a Web Worker, ALTCHA-style, signed by your server when you have one                                                                                                      |
-| **AI officer**        | optional: a small model reads the features and gives a verdict, blended with the rules                                                                                                     |
+| Layer                 | What it checks                                                                                                                                                                                                                                                              |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Declared identity** | user agent, client hints, platform, languages, time zone, screen, cores, memory                                                                                                                                                                                             |
+| **Automation tells**  | `navigator.webdriver`, HeadlessChrome brands, Selenium / Playwright / Puppeteer / PhantomJS globals, plugins, `window.chrome`, notification permission quirk, zero-size window                                                                                              |
+| **Lies**              | native getters and functions that no longer look native (judged with a clean realm's `toString`), a redefined `webdriver`, a patched `Function.prototype.toString`                                                                                                          |
+| **Second opinions**   | the same questions asked from a fresh iframe and a Web Worker, which stealth layers forget; a fresh iframe missing built-ins its page has; an error from the browser's privileged code                                                                                      |
+| **Consistency**       | OS named by the user agent vs platform, `appVersion`, `oscpu`, client hints, GPU and installed fonts; Chrome version vs brands; WebGL vs WebGPU maker; CSS vs JS screen; time zone name vs clock offset; engine claimed vs `eval.toString().length`; phone UA without touch |
+| **Hardware prints**   | canvas (read twice, to spot injected noise), WebGL strings and a rendered scene, offline audio, fonts, WebGPU                                                                                                                                                               |
+| **Behaviour**         | pointer speed, step and wobble, how it arrives (slowing down, correcting, overshooting), `isTrusted`, coalesced samples, key dwell and flight, paste vs typing, scroll cadence, a honeypot                                                                                  |
+| **Proof of work**     | SHA-256 puzzle in a Web Worker, ALTCHA-style, signed by your server when you have one                                                                                                                                                                                       |
+| **AI officer**        | optional: a small model reads the features and gives a verdict, blended with the rules                                                                                                                                                                                      |
 
 Each rule has a weight and a category. Flags of one category tend to fire together (a headless
 user agent and a headless brand are one fact told twice), so within a category the strongest
@@ -65,11 +65,17 @@ Catches:
   missing plugins.
 - **Scripted HTTP clients**: self-named user agents, missing browser headers, and on the server a
   TLS handshake no browser makes.
+- **Camoufox, as it is today** (156 beta): nothing in its JavaScript looks replaced, but the
+  realms it builds have seams. A fresh iframe's `Intl` is empty, and reading its audio fails with
+  an error from Firefox's privileged code (`Xrays`), which no page API ever throws:
+  `fresh-realm-incomplete` and `browser-internals-exposed`. The benchmark refuses it on all three
+  systems it claims, its human-like cursor included.
 
 Does not catch alone:
 
-- **Browsers patched at the source** ([Camoufox](https://github.com/daijro/camoufox) and the
-  like), where nothing in JavaScript looks replaced.
+- **Browsers patched at the source without a seam**: once Camoufox fixes those two, or for a
+  browser that has none, only contradictions in its generated fingerprint are left (fonts of
+  another system, versions, GPU makers), which a careful generator avoids.
 - **AI agents driving a real browser** on a real GPU: their signals are a person's
   ([FP-Agent](https://arxiv.org/abs/2605.01247)).
 - **Human solving farms**, paid to pass any challenge
@@ -77,7 +83,8 @@ Does not catch alone:
 
 For those, the server's signals (JA4, headers, fingerprint velocity, a price per attempt) and
 agents that sign their requests (Web Bot Auth). The benchmark below shows the gap plainly: a
-headed Chrome with its automation flags hidden passes every check here.
+headed Chrome with its automation flags hidden, or Patchright, passes every check here but the
+behaviour ones.
 
 **False positives are tested.** `tests/profiles.test.ts` runs the rules on people whose readings
 look odd for good reasons (keyboard only, a screen reader without a pointer, a canvas-blocking
@@ -219,48 +226,48 @@ The scores below use the correlation-capped combination described above.
 <!-- bench:start -->
 | Classifier                          | Humans passed | Humans challenged | Humans refused | Bots refused | Bots challenged | Bots passed |
 | ----------------------------------- | ------------- | ----------------- | -------------- | ------------ | --------------- | ----------- |
-| Rules alone                         | 13/13         | 0                 | 0              | 8/13         | 4               | 1           |
-| Logistic regression (leave-one-out) | 12/13         | 1                 | 0              | 7/13         | 3               | 3           |
+| Rules alone                         | 13/13         | 0                 | 0              | 11/13        | 2               | 0           |
+| Logistic regression (leave-one-out) | 13/13         | 0                 | 0              | 8/13         | 2               | 3           |
 
 26 samples: 12 human profiles built from documented setups, 1 real browser captured by hand, 13 automated browsers captured by `scripts/capture.ts`. Bot probability per sample:
 
 | Sample                                | Label | Rules | Regression |
 | ------------------------------------- | ----- | ----- | ---------- |
-| chrome-mac                            | human | 0.00  | 0.20       |
-| keyboard-only                         | human | 0.00  | 0.20       |
-| screen-reader                         | human | 0.00  | 0.20       |
-| privacy-extension                     | human | 0.28  | 0.13       |
-| brave                                 | human | 0.00  | 0.11       |
-| safari                                | human | 0.00  | 0.20       |
-| firefox-rfp                           | human | 0.10  | 0.06       |
-| firefox-mac                           | human | 0.00  | 0.20       |
-| firefox-strict                        | human | 0.00  | 0.11       |
-| firefox-linux                         | human | 0.00  | 0.20       |
-| chrome-windows                        | human | 0.00  | 0.20       |
+| chrome-mac                            | human | 0.00  | 0.14       |
+| keyboard-only                         | human | 0.00  | 0.14       |
+| screen-reader                         | human | 0.00  | 0.14       |
+| privacy-extension                     | human | 0.28  | 0.10       |
+| brave                                 | human | 0.00  | 0.08       |
+| safari                                | human | 0.00  | 0.14       |
+| firefox-rfp                           | human | 0.10  | 0.05       |
+| firefox-mac                           | human | 0.00  | 0.14       |
+| firefox-strict                        | human | 0.00  | 0.08       |
+| firefox-linux                         | human | 0.00  | 0.14       |
+| chrome-windows                        | human | 0.00  | 0.14       |
 | android-chrome                        | human | 0.00  | 0.33       |
-| brave-automated                       | bot   | 0.95  | 0.24       |
-| camoufox-linux                        | bot   | 0.00  | 0.11       |
-| camoufox-macos                        | bot   | 0.64  | 0.76       |
-| camoufox-windows                      | bot   | 0.64  | 0.76       |
-| chrome-automated                      | bot   | 0.99  | 0.99       |
-| chrome-headed-hidden                  | bot   | 0.69  | 0.97       |
-| firefox-automated                     | bot   | 0.98  | 0.97       |
+| brave-automated                       | bot   | 0.95  | 0.14       |
+| camoufox-linux                        | bot   | 0.83  | 0.37       |
+| camoufox-macos                        | bot   | 0.94  | 0.95       |
+| camoufox-windows                      | bot   | 0.94  | 0.95       |
+| chrome-automated                      | bot   | 0.99  | 1.00       |
+| chrome-headed-hidden                  | bot   | 0.50  | 0.20       |
+| firefox-automated                     | bot   | 0.98  | 0.29       |
 | headless-new                          | bot   | 0.99  | 1.00       |
-| headless-shell                        | bot   | 0.99  | 0.99       |
-| human-brave-156-on-macos-real-profile | human | 0.00  | 0.42       |
-| patchright-headed                     | bot   | 0.50  | 0.27       |
-| spoofed-windows-ua                    | bot   | 0.98  | 0.62       |
-| stealth-js-layer                      | bot   | 1.00  | 0.98       |
-| stealth-linux-ua                      | bot   | 0.99  | 1.00       |
+| headless-shell                        | bot   | 0.99  | 1.00       |
+| human-brave-156-on-macos-real-profile | human | 0.00  | 0.34       |
+| patchright-headed                     | bot   | 0.69  | 0.87       |
+| spoofed-windows-ua                    | bot   | 0.99  | 0.58       |
+| stealth-js-layer                      | bot   | 1.00  | 0.97       |
+| stealth-linux-ua                      | bot   | 1.00  | 1.00       |
 <!-- bench:end -->
 
 Read it for what it is. A headed Chrome with `AutomationControlled` off, which FingerprintJS's
 open-source BotD also calls "not a bot", has no automation trace at all: the rules give it the
 extra step only through its behaviour (a ruler-straight pointer in even steps, keys at a
-metronome's pace, which `robotic-pointer` and `robotic-typing` read). Patchright and Camoufox
-fare the same: nothing in their JavaScript looks replaced, only their scripted pointer or typing
-gives them away, and Camoufox's human-like cursor passes as a person. A bot that moves and types
-like a person would pass all of it.
+metronome's pace, which `robotic-pointer` and `robotic-typing` read). Patchright fares the same.
+Camoufox is refused on its own seams (an empty `Intl` in a fresh iframe, an audio read failing
+with Firefox's privileged error), so its human-like cursor no longer gets it through. A bot
+without such a seam that moves and types like a person would pass all of it.
 The real Brave (farbled canvas, audio and core count, its own WebGL renderer name) raises no
 rule. An AI agent driving that same Brave through a browser extension is called human too: the
 slider refused its straight drag, and the targets now refuse clicks that jump onto each target.
@@ -345,7 +352,7 @@ What a request is checked for (`REQUEST_RULES`, extensible with your own `rules`
 
 - **Self-named clients:** curl, python-requests, Go, axios, Scrapy, headless tools, a missing User-Agent.
 - **Missing browser headers:** Accept-Language, Accept and Accept-Encoding, which every browser sends.
-- **Client hints:** missing sec-ch-ua on Chromium; sec-ch-ua-platform or sec-ch-ua-mobile contradicting the User-Agent; a HeadlessChrome brand.
+- **Client hints:** missing sec-ch-ua on Chromium; sec-ch-ua-platform, sec-ch-ua-mobile or sec-ch-ua's Chromium version contradicting the User-Agent; a HeadlessChrome brand.
 - **Fetch metadata:** missing Sec-Fetch-* headers on a modern browser.
 - **Protocol and network:** a Chromium speaking HTTP/1.x to you (only when the protocol is the client's: Cloudflare's `request.cf`, or TLS Node terminates itself; behind a proxy or on plain HTTP the last hop's protocol says nothing); an IP on a hosting network (from `request.cf` or the `network` you pass).
 - **Rate:** an optional burst limit per IP (`ratePerMinute`), which also caps `/challenge`.

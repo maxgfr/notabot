@@ -4,8 +4,8 @@
   "source": "Patchright (Playwright patched against its CDP leaks), Chromium, headed",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-30T15:03:55.026Z",
-    "durationMs": 45,
+    "collectedAt": "2026-10-30T15:15:04.071Z",
+    "durationMs": 28,
     "env": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
       "uaData": {
@@ -45,8 +45,8 @@
       "maxTouchPoints": 0,
       "connection": {
         "effectiveType": "4g",
-        "rtt": 100,
-        "downlink": 1.45,
+        "rtt": 150,
+        "downlink": 1.75,
         "saveData": false
       },
       "cookieEnabled": true,
@@ -88,7 +88,14 @@
         "persistent-storage": "prompt"
       },
       "evalLength": 33,
-      "errorFingerprint": "Cannot read properties of null (reading 'x')"
+      "errorFingerprint": "Cannot read properties of null (reading 'x')",
+      "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "oscpu": null,
+      "screenMedia": {
+        "width": true,
+        "height": true,
+        "resolution": true
+      }
     },
     "hardware": {
       "canvas": {
@@ -164,7 +171,8 @@
       "deviceMemory": 16,
       "webdriver": false,
       "timezone": "Europe/Paris",
-      "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+      "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
     },
     "iframe": {
       "snapshot": {
@@ -175,8 +183,10 @@
         "deviceMemory": 16,
         "webdriver": false,
         "timezone": "Europe/Paris",
-        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+        "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
       },
+      "missing": [],
       "mismatches": []
     },
     "worker": {
@@ -188,7 +198,8 @@
         "deviceMemory": 16,
         "webdriver": null,
         "timezone": "Europe/Paris",
-        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+        "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
       },
       "mismatches": []
     },
@@ -198,32 +209,32 @@
     "errors": {}
   },
   "behavior": {
-    "samples": 29,
-    "durationMs": 216,
-    "speedMean": 16.283,
-    "speedCv": 2.032,
-    "accelCv": 2.593,
-    "straightness": 0.087,
-    "angleEntropy": 0.362,
-    "jitter": 192.63,
-    "stepCv": 2.232,
-    "turnRate": 0.115,
-    "endSlowdown": 0.198,
-    "overshoot": 1,
-    "tremor": 142.83,
-    "sessionMs": 744,
-    "moves": 29,
+    "samples": 27,
+    "durationMs": 245,
+    "speedMean": 4.205,
+    "speedCv": 1.128,
+    "accelCv": 4.069,
+    "straightness": 1,
+    "angleEntropy": 0.23,
+    "jitter": 0,
+    "stepCv": 0,
+    "turnRate": 0,
+    "endSlowdown": 0.975,
+    "overshoot": 0,
+    "tremor": 0.55,
+    "sessionMs": 751,
+    "moves": 27,
     "clicks": 1,
     "keys": 15,
     "scrolls": 0,
     "untrusted": 0,
     "inputWithoutKeys": 0,
     "focusChanges": 0,
-    "firstInteractionMs": 3,
-    "coalescedMean": 1.03,
+    "firstInteractionMs": 7,
+    "coalescedMean": 1,
     "keyDwellMean": 31,
-    "keyDwellCv": 0.008,
-    "keyFlightCv": 0.01,
+    "keyDwellCv": 0.014,
+    "keyFlightCv": 0.015,
     "scrollCv": null,
     "pastes": 0,
     "honeypot": 0

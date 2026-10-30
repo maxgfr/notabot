@@ -4,8 +4,8 @@
   "source": "Camoufox, headless, a generated Windows fingerprint on a Mac",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-30T15:03:30.604Z",
-    "durationMs": 46,
+    "collectedAt": "2026-10-30T15:15:17.677Z",
+    "durationMs": 118,
     "env": {
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0",
       "uaData": null,
@@ -18,10 +18,10 @@
       "timezoneOffsetFromName": -60,
       "intlLocale": "en-US",
       "screen": {
-        "width": 2560,
-        "height": 1440,
-        "availWidth": 2560,
-        "availHeight": 1392,
+        "width": 1680,
+        "height": 1050,
+        "availWidth": 1680,
+        "availHeight": 1010,
         "colorDepth": 24,
         "pixelRatio": 1
       },
@@ -64,7 +64,7 @@
       "mediaDevices": {
         "audioinput": 1,
         "audiooutput": 0,
-        "videoinput": 1
+        "videoinput": 0
       },
       "permissions": {
         "notifications": "prompt",
@@ -74,7 +74,14 @@
         "geolocation": "prompt"
       },
       "evalLength": 37,
-      "errorFingerprint": "can't access property \"x\" of null"
+      "errorFingerprint": "can't access property \"x\" of null",
+      "appVersion": "5.0 (Windows)",
+      "oscpu": "Windows NT 10.0; Win64; x64",
+      "screenMedia": {
+        "width": true,
+        "height": true,
+        "resolution": true
+      }
     },
     "hardware": {
       "canvas": {
@@ -85,8 +92,8 @@
         "version": "WebGL 1.0",
         "vendor": "Mozilla",
         "renderer": "Apple M1, or similar",
-        "unmaskedVendor": "Google Inc. (Intel)",
-        "unmaskedRenderer": "ANGLE (Intel, Intel(R) HD Graphics 400 Direct3D11 vs_5_0 ps_5_0), or similar",
+        "unmaskedVendor": "Google Inc. (NVIDIA)",
+        "unmaskedRenderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar",
         "shadingLanguage": "WebGL GLSL ES 1.0",
         "maxTextureSize": 16384,
         "extensions": 27,
@@ -139,9 +146,24 @@
       "deviceMemory": null,
       "webdriver": false,
       "timezone": "Europe/Paris",
-      "webglRenderer": "ANGLE (Intel, Intel(R) HD Graphics 400 Direct3D11 vs_5_0 ps_5_0), or similar"
+      "webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar",
+      "appVersion": "5.0 (Windows)"
     },
-    "iframe": null,
+    "iframe": {
+      "snapshot": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0",
+        "platform": "Win32",
+        "languages": ["en-US", "en"],
+        "hardwareConcurrency": 10,
+        "deviceMemory": null,
+        "webdriver": false,
+        "timezone": null,
+        "webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar",
+        "appVersion": "5.0 (Windows)"
+      },
+      "missing": ["Intl.DateTimeFormat", "Intl.NumberFormat", "Intl.Collator", "Intl.PluralRules"],
+      "mismatches": []
+    },
     "worker": {
       "snapshot": {
         "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0",
@@ -151,30 +173,33 @@
         "deviceMemory": null,
         "webdriver": null,
         "timezone": "Europe/Paris",
-        "webglRenderer": "ANGLE (Intel, Intel(R) HD Graphics 400 Direct3D11 vs_5_0 ps_5_0), or similar"
+        "webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar",
+        "appVersion": "5.0 (Windows)"
       },
       "mismatches": []
     },
     "privacy": {
       "opfs": "ok"
     },
-    "errors": {}
+    "errors": {
+      "audio": "Accessing TypedArray data over Xrays is slow, and forbidden in order to encourage performant code. To copy TypedArrays across origin boundaries, consider using Components.utils.cloneInto()."
+    }
   },
   "behavior": {
     "samples": 26,
-    "durationMs": 61,
-    "speedMean": 19.591,
-    "speedCv": 0.524,
-    "accelCv": 1.803,
+    "durationMs": 180,
+    "speedMean": 10.747,
+    "speedCv": 0.901,
+    "accelCv": 1.326,
     "straightness": 1,
     "angleEntropy": 0.239,
     "jitter": 0.14,
     "stepCv": 0.025,
     "turnRate": 0,
-    "endSlowdown": 0.877,
+    "endSlowdown": 1.895,
     "overshoot": 0,
     "tremor": 1.14,
-    "sessionMs": 907,
+    "sessionMs": 1998,
     "moves": 26,
     "clicks": 1,
     "keys": 16,
@@ -182,11 +207,11 @@
     "untrusted": 0,
     "inputWithoutKeys": 0,
     "focusChanges": 0,
-    "firstInteractionMs": 5,
+    "firstInteractionMs": 41,
     "coalescedMean": 1,
     "keyDwellMean": 52,
-    "keyDwellCv": 0.877,
-    "keyFlightCv": 0.64,
+    "keyDwellCv": 0.426,
+    "keyFlightCv": 0.949,
     "scrollCv": null,
     "pastes": 0,
     "honeypot": 0

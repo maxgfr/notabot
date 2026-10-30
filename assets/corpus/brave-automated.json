@@ -4,8 +4,8 @@
   "source": "Installed Brave, driven by Playwright (headless)",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-29T23:06:04.328Z",
-    "durationMs": 422,
+    "collectedAt": "2026-10-30T15:14:57.316Z",
+    "durationMs": 175,
     "env": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
       "uaData": {
@@ -37,11 +37,11 @@
       "window": {
         "innerWidth": 1280,
         "innerHeight": 720,
-        "outerWidth": 1286,
-        "outerHeight": 723
+        "outerWidth": 1287,
+        "outerHeight": 720
       },
       "hardwareConcurrency": 6,
-      "deviceMemory": 8,
+      "deviceMemory": 16,
       "maxTouchPoints": 0,
       "connection": null,
       "cookieEnabled": true,
@@ -83,7 +83,14 @@
         "persistent-storage": "prompt"
       },
       "evalLength": 33,
-      "errorFingerprint": "Cannot read properties of null (reading 'x')"
+      "errorFingerprint": "Cannot read properties of null (reading 'x')",
+      "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "oscpu": null,
+      "screenMedia": {
+        "width": false,
+        "height": false,
+        "resolution": true
+      }
     },
     "hardware": {
       "canvas": {
@@ -156,10 +163,11 @@
       "platform": "MacIntel",
       "languages": ["fr-FR"],
       "hardwareConcurrency": 6,
-      "deviceMemory": 8,
+      "deviceMemory": 16,
       "webdriver": false,
       "timezone": "Europe/Paris",
-      "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+      "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
     },
     "iframe": {
       "snapshot": {
@@ -167,11 +175,13 @@
         "platform": "MacIntel",
         "languages": ["fr-FR"],
         "hardwareConcurrency": 6,
-        "deviceMemory": 8,
+        "deviceMemory": 16,
         "webdriver": false,
         "timezone": "Europe/Paris",
-        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+        "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
       },
+      "missing": [],
       "mismatches": []
     },
     "worker": {
@@ -180,10 +190,11 @@
         "platform": "MacIntel",
         "languages": ["fr-FR"],
         "hardwareConcurrency": 6,
-        "deviceMemory": 8,
+        "deviceMemory": 16,
         "webdriver": null,
         "timezone": "Europe/Paris",
-        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+        "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
       },
       "mismatches": []
     },
@@ -205,7 +216,8 @@
     "turnRate": 0,
     "endSlowdown": null,
     "overshoot": null,
-    "sessionMs": 423,
+    "tremor": null,
+    "sessionMs": 176,
     "moves": 0,
     "clicks": 0,
     "keys": 0,

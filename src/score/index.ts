@@ -43,6 +43,8 @@ export const THRESHOLDS = { bot: 0.8, unsure: 0.35 } as const;
 
 const DEVICE_MEMORY = new Set([0.25, 0.5, 1, 2, 4, 8, 16, 32]);
 const MOBILE_UA = /Android|iPhone|iPod|Mobile/;
+/** Words only Firefox's privileged code uses: a page's own APIs never fail with them. */
+const BROWSER_INTERNALS = /\bXrays?\b|Components\.(utils|classes|interfaces)|\bcloneInto\b/;
 const PRIVACY_TARGETS =
   /^(HTMLCanvasElement|CanvasRenderingContext2D|WebGLRenderingContext|AudioBuffer|Element|Screen)\./;
 
@@ -64,6 +66,8 @@ export function claimedSystems(s: NotabotSignals): Record<string, string> {
   };
   add("userAgent", osOf(s.env.userAgent));
   add("platform", osOf(s.env.platform));
+  if (s.env.appVersion) add("appVersion", osOf(s.env.appVersion));
+  if (s.env.oscpu) add("oscpu", osOf(s.env.oscpu));
   if (s.env.uaData) add("uaData", uaDataOs(s.env.uaData.platform));
   const renderer = s.hardware.webgl?.unmaskedRenderer ?? s.hardware.webgl?.renderer ?? "";
   // Only renderers that name their system for sure: ANGLE's back end, Apple's chips, Mesa.
@@ -77,6 +81,67 @@ function systemsDisagree(systems: Record<string, string>): boolean {
   // An iPad asks for the desktop site as a Mac; Android and ChromeOS run on Linux.
   const norm = (os: string) => (os === "ios" ? "mac" : os === "android" ? "linux" : os);
   return new Set(Object.values(systems).map(norm)).size > 1;
+}
+
+/**
+ * Fonts that come with one system and no other, among those `collectFonts` looks for. Office
+ * installs Calibri and Consolas on Macs, so a system's own fonts count, never the others alone.
+ */
+const SYSTEM_FONTS: Record<"windows" | "mac" | "linux", readonly string[]> = {
+  windows: ["Segoe UI", "Calibri", "Consolas", "Cambria", "Candara"],
+  mac: ["Helvetica Neue", "Menlo", "Geneva", "Lucida Grande", "Optima", "Gill Sans", "Futura"],
+  linux: ["DejaVu Sans", "Liberation Sans", "Ubuntu"],
+};
+
+/**
+ * The system whose own fonts are installed when the claimed system's are all missing, or null.
+ * A privacy setting that hides fonts leaves the system's base ones, or none: never another's.
+ */
+export function fontsOfAnotherSystem(s: NotabotSignals): string | null {
+  const claimed = osOf(s.env.userAgent);
+  if (claimed !== "windows" && claimed !== "mac" && claimed !== "linux") return null;
+  const fonts = new Set(s.hardware.fonts);
+  const has = (os: keyof typeof SYSTEM_FONTS) => SYSTEM_FONTS[os].filter((f) => fonts.has(f));
+  if (has(claimed).length) return null;
+  for (const os of ["windows", "mac", "linux"] as const)
+    if (os !== claimed && has(os).length >= 2) return `${os}: ${has(os).join(", ")}`;
+  return null;
+}
+
+/** The Chromium major version the user agent and the userAgentData brands name, when both do. */
+export function chromiumVersions(s: NotabotSignals): { ua: number; brand: number } | null {
+  const ua = /Chrome\/(\d+)/.exec(s.env.userAgent)?.[1];
+  const brand = s.env.uaData?.brands
+    .map((b) => /^Chromium (\d+)/.exec(b)?.[1])
+    .find((v) => v !== undefined);
+  return ua && brand ? { ua: Number(ua), brand: Number(brand) } : null;
+}
+
+type GpuVendor = "apple" | "nvidia" | "amd" | "intel" | "qualcomm" | "arm" | "unknown";
+
+function gpuVendorOf(text: string): GpuVendor {
+  if (/apple/i.test(text)) return "apple";
+  if (/nvidia|geforce|quadro/i.test(text)) return "nvidia";
+  if (/\bamd\b|radeon|\bati\b/i.test(text)) return "amd";
+  if (/intel/i.test(text)) return "intel";
+  if (/qualcomm|adreno/i.test(text)) return "qualcomm";
+  if (/\barm\b|mali/i.test(text)) return "arm";
+  return "unknown";
+}
+
+/** Laptops pair an integrated GPU with a discrete one, and WebGPU and WebGL may each take one. */
+const HYBRID = new Set<GpuVendor>(["intel", "amd", "nvidia"]);
+
+/** The GPU makers WebGL and WebGPU name when they cannot be one machine's, or null. */
+export function gpuVendorsDisagree(s: NotabotSignals): string | null {
+  const gl = s.hardware.webgl;
+  const gpu = s.hardware.webgpu;
+  if (!gl || !gpu) return null;
+  const a = gpuVendorOf(`${gl.unmaskedVendor ?? ""} ${gl.unmaskedRenderer ?? gl.renderer}`);
+  const b = gpuVendorOf(gpu.vendor);
+  if (a === "unknown" || b === "unknown" || a === b || (HYBRID.has(a) && HYBRID.has(b)))
+    return null;
+  return `WebGL ${a}, WebGPU ${b}`;
 }
 
 export const RULES: Rule[] = [
@@ -164,6 +229,47 @@ export const RULES: Rule[] = [
       signals.iframe?.mismatches.length ? signals.iframe.mismatches.join(", ") : null,
   },
   {
+    id: "fresh-realm-incomplete",
+    category: "tampering",
+    weight: 0.8,
+    explain:
+      "A fresh iframe lacks built-ins the page has (Intl's constructors): the browser that built it was patched at the source.",
+    test: ({ signals }) =>
+      signals.iframe?.missing?.length ? signals.iframe.missing.join(", ") : null,
+  },
+  {
+    id: "browser-internals-exposed",
+    category: "tampering",
+    // Below the refusal line alone: a Firefox extension that wraps a page API badly could leak
+    // the same words.
+    weight: 0.7,
+    explain:
+      "A page API failed with an error from the browser's privileged code (Xray wrappers, Components): its answer came from a patch inside the browser.",
+    test: ({ signals }) => {
+      const found = Object.entries(signals.errors ?? {}).filter(([, e]) =>
+        BROWSER_INTERNALS.test(e),
+      );
+      return found.length
+        ? found.map(([name, e]) => `${name}: ${e.slice(0, 60)}`).join("; ")
+        : null;
+    },
+  },
+  {
+    id: "screen-media-mismatch",
+    category: "tampering",
+    // Weak: a privacy tool may rewrite the screen JavaScript reads and not the one CSS reads.
+    weight: 0.3,
+    explain:
+      "CSS media queries see another screen size or pixel ratio than JavaScript reports: one of them was rewritten.",
+    test: ({ signals }) => {
+      const m = signals.env.screenMedia;
+      // Brave farbles the screen JavaScript reads, not CSS's: every Brave would trip.
+      if (!m || signals.env.uaData?.brands.some((b) => /^Brave\b/.test(b))) return null;
+      const off = (["width", "height", "resolution"] as const).filter((k) => m[k] === false);
+      return off.length ? `${off.join(", ")} not matched by CSS` : null;
+    },
+  },
+  {
     id: "worker-mismatch",
     category: "tampering",
     weight: 0.55,
@@ -198,6 +304,33 @@ export const RULES: Rule[] = [
             .join(", ")
         : null;
     },
+  },
+  {
+    id: "fonts-os-mismatch",
+    category: "consistency",
+    weight: 0.5,
+    explain:
+      "None of the claimed system's own fonts is installed, and another system's are: the user agent names a system the machine is not.",
+    test: ({ signals }) => fontsOfAnotherSystem(signals),
+  },
+  {
+    id: "ua-version-mismatch",
+    category: "consistency",
+    weight: 0.6,
+    explain:
+      "The user agent names another Chrome version than userAgentData's brands: the user agent was overridden.",
+    test: ({ signals }) => {
+      const v = chromiumVersions(signals);
+      return v && v.ua !== v.brand ? `Chrome/${v.ua} vs Chromium ${v.brand}` : null;
+    },
+  },
+  {
+    id: "gpu-vendor-mismatch",
+    category: "hardware",
+    weight: 0.4,
+    explain:
+      "WebGL and WebGPU name GPU makers that cannot share one machine: one of the two names was rewritten.",
+    test: ({ signals }) => gpuVendorsDisagree(signals),
   },
   {
     id: "timezone-mismatch",

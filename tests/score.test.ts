@@ -145,3 +145,92 @@ describe("verdicts and blending", () => {
     expect(verdictOf(blend(0.1, 0.7))).toBe("human");
   });
 });
+
+describe("values a fingerprint generator gets wrong", () => {
+  const WINDOWS_UA =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
+
+  test("navigator.appVersion and oscpu name their system too", () => {
+    const s = realChrome();
+    s.env.appVersion = "5.0 (Windows)";
+    s.env.oscpu = "Windows NT 10.0; Win64; x64";
+    expect(claimedSystems(s)).toMatchObject({ appVersion: "windows", oscpu: "windows" });
+    expect(ids(score({ signals: s }))).toContain("os-mismatch");
+    s.env.appVersion = "5.0 (Macintosh)";
+    s.env.oscpu = "Intel Mac OS X 10.15";
+    expect(ids(score({ signals: s }))).not.toContain("os-mismatch");
+  });
+
+  test("a fresh iframe without Intl's constructors (Camoufox)", () => {
+    const s = realChrome();
+    if (!s.iframe) throw new Error("fixture");
+    s.iframe.missing = ["Intl.DateTimeFormat", "Intl.NumberFormat"];
+    const result = score({ signals: s });
+    expect(ids(result)).toEqual(["fresh-realm-incomplete"]);
+    expect(result.verdict).toBe("bot");
+  });
+
+  test("an error from the browser's privileged code, never from a page API", () => {
+    const s = realChrome();
+    s.errors = { audio: "Accessing TypedArray data over Xrays is slow, and forbidden" };
+    const result = score({ signals: s });
+    expect(ids(result)).toEqual(["browser-internals-exposed"]);
+    expect(result.verdict).toBe("unsure");
+    s.errors = { audio: "timeout", webgpu: "The operation is insecure." };
+    expect(ids(score({ signals: s }))).toEqual([]);
+  });
+
+  test("fonts of another system than the user agent's", () => {
+    const s = realChrome();
+    s.env.userAgent = WINDOWS_UA;
+    s.env.uaData = null;
+    s.env.platform = "Win32";
+    s.hardware.webgl = null;
+    s.hardware.fonts = ["Arial", "Helvetica Neue", "Menlo", "Geneva"];
+    expect(ids(score({ signals: s }))).toContain("fonts-os-mismatch");
+    // Office's fonts on a Mac, a privacy setting hiding all but Arial: no contradiction.
+    s.hardware.fonts = ["Arial", "Segoe UI", "Menlo", "Geneva"];
+    expect(ids(score({ signals: s }))).not.toContain("fonts-os-mismatch");
+    s.hardware.fonts = ["Arial"];
+    expect(ids(score({ signals: s }))).not.toContain("fonts-os-mismatch");
+  });
+
+  test("a user agent overridden without its brands", () => {
+    const s = realChrome();
+    s.env.userAgent = s.env.userAgent.replace("Chrome/142", "Chrome/138");
+    expect(ids(score({ signals: s }))).toEqual(["ua-version-mismatch"]);
+    // Opera, Edge and Samsung name their own version beside Chromium's: Chrome/ still matches.
+    s.env.userAgent = `${realChrome().env.userAgent} OPR/124.0.0.0`;
+    s.env.uaData = {
+      brands: ["Opera 124", "Chromium 142", "Not_A Brand 99"],
+      mobile: false,
+      platform: "macOS",
+    };
+    expect(ids(score({ signals: s }))).toEqual([]);
+  });
+
+  test("WebGL and WebGPU name makers one machine cannot have", () => {
+    const s = realChrome();
+    s.hardware.webgpu = { vendor: "nvidia", architecture: "ampere" };
+    expect(ids(score({ signals: s }))).toContain("gpu-vendor-mismatch");
+    // An Intel laptop with an NVIDIA card: each API may take another GPU.
+    s.hardware.webgl = {
+      ...(s.hardware.webgl as NonNullable<typeof s.hardware.webgl>),
+      unmaskedVendor: "Google Inc. (Intel)",
+      unmaskedRenderer: "ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    };
+    expect(ids(score({ signals: s }))).not.toContain("gpu-vendor-mismatch");
+  });
+
+  test("CSS sees another screen than JavaScript", () => {
+    const s = realChrome();
+    s.env.screenMedia = { width: false, height: true, resolution: null };
+    expect(ids(score({ signals: s }))).toEqual(["screen-media-mismatch"]);
+    s.env.screenMedia = { width: true, height: true, resolution: null };
+    expect(ids(score({ signals: s }))).toEqual([]);
+    // Brave farbles JavaScript's screen and leaves CSS's: it does not count against Brave.
+    s.env.screenMedia = { width: false, height: false, resolution: true };
+    s.env.uaData = { brands: ["Brave 142", "Chromium 142"], mobile: false, platform: "macOS" };
+    expect(ids(score({ signals: s }))).toEqual([]);
+  });
+});

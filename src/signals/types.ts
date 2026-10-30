@@ -6,8 +6,11 @@ export interface RealmSnapshot {
   hardwareConcurrency: number | null;
   deviceMemory: number | null;
   webdriver: boolean | null;
-  timezone: string;
+  /** Null when the realm cannot say (its `Intl` is broken, see `RealmComparison.missing`). */
+  timezone: string | null;
   webglRenderer: string | null;
+  /** `navigator.appVersion`, which names the system on its own (absent from older captures). */
+  appVersion?: string;
 }
 
 export interface UaData {
@@ -65,6 +68,15 @@ export interface EnvSignals {
   evalLength: number;
   /** Message of a known error, which differs per engine. */
   errorFingerprint: string;
+  /** `navigator.appVersion`: "5.0 (Windows)" in Firefox, the user agent's tail elsewhere. */
+  appVersion?: string;
+  /** `navigator.oscpu`, Firefox only: the system it was built for. */
+  oscpu?: string | null;
+  /**
+   * Whether CSS media queries see the screen `screen` and `devicePixelRatio` report: a value
+   * rewritten in JavaScript leaves CSS reading the real one. Null where the query is unsupported.
+   */
+  screenMedia?: { width: boolean | null; height: boolean | null; resolution: boolean | null };
 }
 
 export interface WebGLInfo {
@@ -121,6 +133,8 @@ export interface RealmComparison {
   snapshot: RealmSnapshot;
   /** Fields that differ from the page's own snapshot. */
   mismatches: string[];
+  /** Built-ins the page has and this fresh realm lacks, e.g. "Intl.DateTimeFormat". */
+  missing?: string[];
 }
 
 export interface NotabotSignals {

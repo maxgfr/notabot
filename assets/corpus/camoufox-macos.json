@@ -4,8 +4,8 @@
   "source": "Camoufox, headless, a generated macOS fingerprint on a Mac",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-30T15:03:21.437Z",
-    "durationMs": 46,
+    "collectedAt": "2026-10-30T15:15:06.777Z",
+    "durationMs": 53,
     "env": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0",
       "uaData": null,
@@ -18,10 +18,10 @@
       "timezoneOffsetFromName": -60,
       "intlLocale": "en-US",
       "screen": {
-        "width": 1800,
-        "height": 1169,
-        "availWidth": 1800,
-        "availHeight": 1131,
+        "width": 1440,
+        "height": 900,
+        "availWidth": 1440,
+        "availHeight": 802,
         "colorDepth": 30,
         "pixelRatio": 1
       },
@@ -74,7 +74,14 @@
         "geolocation": "prompt"
       },
       "evalLength": 37,
-      "errorFingerprint": "can't access property \"x\" of null"
+      "errorFingerprint": "can't access property \"x\" of null",
+      "appVersion": "5.0 (Macintosh)",
+      "oscpu": "Intel Mac OS X 10.15",
+      "screenMedia": {
+        "width": true,
+        "height": true,
+        "resolution": true
+      }
     },
     "hardware": {
       "canvas": {
@@ -144,9 +151,24 @@
       "deviceMemory": null,
       "webdriver": false,
       "timezone": "Europe/Paris",
-      "webglRenderer": "Apple M1, or similar"
+      "webglRenderer": "Apple M1, or similar",
+      "appVersion": "5.0 (Macintosh)"
     },
-    "iframe": null,
+    "iframe": {
+      "snapshot": {
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0",
+        "platform": "MacIntel",
+        "languages": ["en-US", "en"],
+        "hardwareConcurrency": 10,
+        "deviceMemory": null,
+        "webdriver": false,
+        "timezone": null,
+        "webglRenderer": "Apple M1, or similar",
+        "appVersion": "5.0 (Macintosh)"
+      },
+      "missing": ["Intl.DateTimeFormat", "Intl.NumberFormat", "Intl.Collator", "Intl.PluralRules"],
+      "mismatches": []
+    },
     "worker": {
       "snapshot": {
         "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0",
@@ -156,30 +178,33 @@
         "deviceMemory": null,
         "webdriver": null,
         "timezone": "Europe/Paris",
-        "webglRenderer": "Apple M1, or similar"
+        "webglRenderer": "Apple M1, or similar",
+        "appVersion": "5.0 (Macintosh)"
       },
       "mismatches": []
     },
     "privacy": {
       "opfs": "ok"
     },
-    "errors": {}
+    "errors": {
+      "audio": "Accessing TypedArray data over Xrays is slow, and forbidden in order to encourage performant code. To copy TypedArrays across origin boundaries, consider using Components.utils.cloneInto()."
+    }
   },
   "behavior": {
     "samples": 26,
-    "durationMs": 69,
-    "speedMean": 20.311,
-    "speedCv": 0.471,
-    "accelCv": 1.635,
+    "durationMs": 160,
+    "speedMean": 18.527,
+    "speedCv": 0.532,
+    "accelCv": 1.699,
     "straightness": 1,
     "angleEntropy": 0.239,
     "jitter": 0.14,
     "stepCv": 0.025,
     "turnRate": 0,
-    "endSlowdown": 0.908,
+    "endSlowdown": 1.437,
     "overshoot": 0,
     "tremor": 1.14,
-    "sessionMs": 734,
+    "sessionMs": 812,
     "moves": 26,
     "clicks": 1,
     "keys": 16,
@@ -189,9 +214,9 @@
     "focusChanges": 0,
     "firstInteractionMs": 5,
     "coalescedMean": 1,
-    "keyDwellMean": 40,
-    "keyDwellCv": 0.773,
-    "keyFlightCv": 0.472,
+    "keyDwellMean": 38,
+    "keyDwellCv": 0.654,
+    "keyFlightCv": 0.323,
     "scrollCv": null,
     "pastes": 0,
     "honeypot": 0

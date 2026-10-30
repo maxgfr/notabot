@@ -4,8 +4,8 @@
   "source": "Playwright Firefox, headless, nothing hidden",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-30T15:03:17.761Z",
-    "durationMs": 49,
+    "collectedAt": "2026-10-30T15:15:02.391Z",
+    "durationMs": 45,
     "env": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0",
       "uaData": null,
@@ -74,7 +74,14 @@
         "persistent-storage": "prompt"
       },
       "evalLength": 37,
-      "errorFingerprint": "can't access property \"x\" of null"
+      "errorFingerprint": "can't access property \"x\" of null",
+      "appVersion": "5.0 (Macintosh)",
+      "oscpu": "Intel Mac OS X 10.15",
+      "screenMedia": {
+        "width": true,
+        "height": true,
+        "resolution": true
+      }
     },
     "hardware": {
       "canvas": {
@@ -147,7 +154,8 @@
       "deviceMemory": null,
       "webdriver": true,
       "timezone": "Europe/Paris",
-      "webglRenderer": "Apple M1, or similar"
+      "webglRenderer": "Apple M1, or similar",
+      "appVersion": "5.0 (Macintosh)"
     },
     "iframe": {
       "snapshot": {
@@ -158,8 +166,10 @@
         "deviceMemory": null,
         "webdriver": true,
         "timezone": "Europe/Paris",
-        "webglRenderer": "Apple M1, or similar"
+        "webglRenderer": "Apple M1, or similar",
+        "appVersion": "5.0 (Macintosh)"
       },
+      "missing": [],
       "mismatches": []
     },
     "worker": {
@@ -171,7 +181,8 @@
         "deviceMemory": null,
         "webdriver": null,
         "timezone": "Europe/Paris",
-        "webglRenderer": "Apple M1, or similar"
+        "webglRenderer": "Apple M1, or similar",
+        "appVersion": "5.0 (Macintosh)"
       },
       "mismatches": []
     },
@@ -182,19 +193,19 @@
   },
   "behavior": {
     "samples": 27,
-    "durationMs": 273,
-    "speedMean": 3.338,
-    "speedCv": 0.5,
-    "accelCv": 2.147,
+    "durationMs": 326,
+    "speedMean": 5.372,
+    "speedCv": 1.236,
+    "accelCv": 2.405,
     "straightness": 1,
     "angleEntropy": 0.239,
     "jitter": 0.14,
     "stepCv": 0.025,
     "turnRate": 0,
-    "endSlowdown": 0.878,
+    "endSlowdown": 0.769,
     "overshoot": 0,
     "tremor": 1.69,
-    "sessionMs": 815,
+    "sessionMs": 880,
     "moves": 27,
     "clicks": 1,
     "keys": 15,
@@ -202,11 +213,11 @@
     "untrusted": 0,
     "inputWithoutKeys": 0,
     "focusChanges": 0,
-    "firstInteractionMs": 8,
+    "firstInteractionMs": 14,
     "coalescedMean": 1,
     "keyDwellMean": 32,
-    "keyDwellCv": 0.028,
-    "keyFlightCv": 0.033,
+    "keyDwellCv": 0.07,
+    "keyFlightCv": 0.085,
     "scrollCv": null,
     "pastes": 0,
     "honeypot": 0

@@ -140,6 +140,25 @@ function errorFingerprint(): string {
   return "";
 }
 
+/**
+ * Whether CSS sees the screen size and pixel ratio JavaScript reports, a pixel (or a hundredth)
+ * of rounding allowed; null when the engine does not support the query at all.
+ */
+export function screenMedia(): NonNullable<EnvSignals["screenMedia"]> {
+  const supported = (query: string) => matchMedia(query).matches;
+  const within = (feature: string, value: number, slack: number, unit: string) =>
+    supported(`(min-${feature}: 0.001${unit})`)
+      ? supported(
+          `(min-${feature}: ${value - slack}${unit}) and (max-${feature}: ${value + slack}${unit})`,
+        )
+      : null;
+  return {
+    width: within("device-width", screen.width, 1, "px"),
+    height: within("device-height", screen.height, 1, "px"),
+    resolution: within("resolution", devicePixelRatio, 0.01, "dppx"),
+  };
+}
+
 /** Everything the page can read about the browser, its settings and its machine. */
 export async function collectEnv(): Promise<EnvSignals> {
   const nav = navigator as LooseNavigator;
@@ -202,5 +221,8 @@ export async function collectEnv(): Promise<EnvSignals> {
     // Reading eval's source, never calling it.
     evalLength: String(Reflect.get(globalThis, "eval")).length,
     errorFingerprint: errorFingerprint(),
+    appVersion: nav.appVersion,
+    oscpu: (nav as { oscpu?: string }).oscpu ?? null,
+    screenMedia: screenMedia(),
   };
 }

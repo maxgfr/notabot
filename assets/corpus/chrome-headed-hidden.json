@@ -4,8 +4,8 @@
   "source": "Installed Google Chrome, headed, AutomationControlled off: the hardest here",
   "signals": {
     "version": 1,
-    "collectedAt": "2026-10-29T23:06:06.933Z",
-    "durationMs": 43,
+    "collectedAt": "2026-10-30T15:15:00.257Z",
+    "durationMs": 24,
     "env": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
       "uaData": {
@@ -92,7 +92,14 @@
         "persistent-storage": "prompt"
       },
       "evalLength": 33,
-      "errorFingerprint": "Cannot read properties of null (reading 'x')"
+      "errorFingerprint": "Cannot read properties of null (reading 'x')",
+      "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "oscpu": null,
+      "screenMedia": {
+        "width": true,
+        "height": true,
+        "resolution": true
+      }
     },
     "hardware": {
       "canvas": {
@@ -168,7 +175,8 @@
       "deviceMemory": 16,
       "webdriver": false,
       "timezone": "Europe/Paris",
-      "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+      "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
     },
     "iframe": {
       "snapshot": {
@@ -179,8 +187,10 @@
         "deviceMemory": 16,
         "webdriver": false,
         "timezone": "Europe/Paris",
-        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+        "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
       },
+      "missing": [],
       "mismatches": []
     },
     "worker": {
@@ -192,7 +202,8 @@
         "deviceMemory": 16,
         "webdriver": null,
         "timezone": "Europe/Paris",
-        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        "webglRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+        "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
       },
       "mismatches": []
     },
@@ -202,28 +213,29 @@
     "errors": {}
   },
   "behavior": {
-    "samples": 27,
-    "durationMs": 216,
-    "speedMean": 5.865,
-    "speedCv": 1.179,
-    "accelCv": 2.645,
-    "straightness": 1,
-    "angleEntropy": 0.23,
-    "jitter": 0,
-    "stepCv": 0,
-    "turnRate": 0,
-    "endSlowdown": 2.105,
+    "samples": 37,
+    "durationMs": 320,
+    "speedMean": 6.24,
+    "speedCv": 0.991,
+    "accelCv": 3.261,
+    "straightness": 0.887,
+    "angleEntropy": 0.297,
+    "jitter": 160.99,
+    "stepCv": 0.773,
+    "turnRate": 0.059,
+    "endSlowdown": 1.484,
     "overshoot": 0,
-    "sessionMs": 737,
-    "moves": 27,
+    "tremor": 10.21,
+    "sessionMs": 714,
+    "moves": 37,
     "clicks": 1,
     "keys": 15,
     "scrolls": 0,
     "untrusted": 0,
     "inputWithoutKeys": 0,
     "focusChanges": 0,
-    "firstInteractionMs": 4,
-    "coalescedMean": 1,
+    "firstInteractionMs": 1,
+    "coalescedMean": 1.03,
     "keyDwellMean": 31,
     "keyDwellCv": 0.01,
     "keyFlightCv": 0.011,
