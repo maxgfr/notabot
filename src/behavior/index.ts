@@ -8,6 +8,8 @@ export interface PointerSample {
   coalesced: number;
   pressure: number;
   type: string;
+  /** "mouse", "pen" or "touch", as the event said (the widget's slider records it). */
+  pointerType?: string;
 }
 
 export interface KeySample {
@@ -67,6 +69,12 @@ export interface Trajectory {
   endSlowdown: number | null;
   /** Share of strokes that pass their end point and come back to it, as a hand overshoots. */
   overshoot: number | null;
+  /**
+   * How much a stroke's curvature jumps from one sample to the next, in pixels, averaged: a hand's
+   * samples tremble around its path (about a pixel or more), a computed curve bends smoothly (near
+   * 0, however curved). Unlike `jitter`, a bend does not count. Null with fewer than 4 samples.
+   */
+  tremor: number | null;
 }
 
 export interface BehaviorFeatures extends Trajectory {
@@ -134,6 +142,7 @@ export function analyzeTrajectory(samples: PointerSample[]): Trajectory {
     turnRate: 0,
     endSlowdown: null,
     overshoot: null,
+    tremor: null,
   };
   if (samples.length < 3) return empty;
   const speeds: number[] = [];
@@ -144,9 +153,23 @@ export function analyzeTrajectory(samples: PointerSample[]): Trajectory {
   const steps: number[] = [];
   const slowdowns: number[] = [];
   const overshoots: number[] = [];
+  const tremors: number[] = [];
   for (const stroke of strokes(samples)) {
     let path = 0;
     const strokeSpeeds: number[] = [];
+    // Curvature changes slowly along a smooth curve, however bent; a hand's samples jump around
+    // it. The change of the second difference from one sample to the next keeps only the jumps.
+    const second = (i: number) => {
+      const a = stroke[i - 1] as PointerSample;
+      const b = stroke[i] as PointerSample;
+      const c = stroke[i + 1] as PointerSample;
+      return [a.x - 2 * b.x + c.x, a.y - 2 * b.y + c.y] as const;
+    };
+    for (let i = 2; i + 1 < stroke.length; i++) {
+      const [x1, y1] = second(i - 1);
+      const [x2, y2] = second(i);
+      tremors.push(Math.hypot(x2 - x1, y2 - y1) / 2);
+    }
     let prevSpeed: number | null = null;
     let prevAngle: number | null = null;
     for (let i = 1; i < stroke.length; i++) {
@@ -228,6 +251,7 @@ export function analyzeTrajectory(samples: PointerSample[]): Trajectory {
     ),
     endSlowdown: slowdowns.length ? round(mean(slowdowns)) : null,
     overshoot: overshoots.length ? round(mean(overshoots)) : null,
+    tremor: tremors.length ? round(mean(tremors), 2) : null,
   };
 }
 
@@ -396,6 +420,11 @@ export function judgeSlide(
   });
   if (!landed) return fail("missed-target");
   if (samples.some((s) => !s.trusted)) return fail("untrusted");
+  // Pointer Events: with a button down, a device without pressure reports 0.5, a pen or a finger
+  // its own. A drag at pressure 0 throughout comes from no browser: it was written by hand.
+  // A finger on some phones reads 0, so touch is left out.
+  if (samples.length && samples.every((s) => s.pressure === 0 && s.pointerType !== "touch"))
+    return fail("untrusted");
   if (samples.length < (options.minSamples ?? 6)) return fail("too-few-samples");
   if (trajectory.durationMs < (options.minDurationMs ?? 250)) return fail("too-fast");
   // Geometry, not timing: an automation clock adds jitter to the speed of a ruler-straight,

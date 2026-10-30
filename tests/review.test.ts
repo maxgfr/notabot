@@ -1,5 +1,5 @@
 // Regression tests for the findings of the code review (issue #22).
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setSystemTime, test } from "bun:test";
 import type { PointerSample } from "../src/behavior/index";
 import { attributesFromDataset } from "../src/embed";
 import {
@@ -40,7 +40,14 @@ async function verified(nb: Nb, signals: NotabotSignals, network: object | null 
   return (await (res as Response).json()) as Record<string, unknown>;
 }
 
+/** Moves the clock forward, as the time a person takes; back to the real one after each test. */
+const later = (ms: number) => setSystemTime(new Date(Date.now() + ms));
+afterEach(() => {
+  setSystemTime();
+});
+
 const slide = async (nb: Nb, body: object) => {
+  later(10_000);
   const res = await nb.handle(
     new Request("https://site.dev/notabot/slide", {
       method: "POST",

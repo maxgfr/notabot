@@ -49,6 +49,7 @@ export const BEHAVIOR_KEYS = [
   "turnRate",
   "endSlowdown",
   "overshoot",
+  "tremor",
   "moves",
   "clicks",
   "keys",
@@ -298,12 +299,13 @@ export function chatRequests(
   model: string,
   prompt: string,
   maxTokens = 1200,
+  system = SYSTEM_PROMPT,
 ): Record<string, unknown>[] {
   const base = {
     model,
     max_tokens: maxTokens,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: system },
       { role: "user", content: prompt },
     ],
   };

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setSystemTime, test } from "bun:test";
 import type { PointerSample } from "../src/behavior/index";
 import {
   clientIp,
@@ -24,6 +24,12 @@ const req = (path: string, headers: Record<string, string>, init: RequestInit = 
 
 type Nb = ReturnType<typeof createNotabot>;
 
+/** Moves the clock forward, as the time a person takes; back to the real one after each test. */
+const later = (ms: number) => setSystemTime(new Date(Date.now() + ms));
+afterEach(() => {
+  setSystemTime();
+});
+
 async function solution(nb: Nb, headers = chromeHeaders(UA), ip: string | null = IP) {
   const c = (await (
     await nb.handle(req("/notabot/challenge", headers), { ip })
@@ -38,6 +44,8 @@ async function post(
   headers: Record<string, string> = chromeHeaders(UA),
   ip: string | null = IP,
 ) {
+  // A person sees the extra step and moves: the server's clock must have moved on too.
+  if (route === "slide") later(10_000);
   const res = (await nb.handle(
     req(
       `/notabot/${route}`,
@@ -381,10 +389,10 @@ describe("/slide", () => {
     const slid = await post(nb, "slide", { token: body.token, samples: drag(zone + 7), track });
     expect(slid.body).toMatchObject({ passed: true, verdict: "human" });
     expect((await nb.verifyRequest(info, slid.body.token as string)).ok).toBe(true);
-    // The unsure token cannot be slid twice.
-    expect(
-      (await post(nb, "slide", { token: body.token, samples: drag(zone + 7), track })).status,
-    ).toBe(403);
+    // The unsure token cannot be slid twice: the same gesture is a replay, refused before that.
+    const again = await post(nb, "slide", { token: body.token, samples: drag(zone + 7), track });
+    expect(again.body.passed).not.toBe(true);
+    expect(again.body.token).toBeUndefined();
   });
 
   test("a ruler-straight drag fails, attempts run out, and the keyboard way works", async () => {

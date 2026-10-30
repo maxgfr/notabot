@@ -105,6 +105,8 @@ test("signed slider: the server judges the drag, the gate accepts, siteverify re
   await page.goto("/form");
   await widget(page).locator("button.seal").click();
   await expect.poll(() => state(page), { timeout: 20_000 }).toBe("challenge");
+  // A person sees the slider before reaching for it: the server's clock refuses less.
+  await page.waitForTimeout(400);
   await drag(page);
   await expect.poll(() => state(page)).toBe("human");
   const token = await widget(page).evaluate((el) => (el as unknown as { token: string }).token);
@@ -130,6 +132,8 @@ test("signed targets: pressed from the keyboard in order, re-signed human by the
   await page.goto("/form?base=targets");
   await widget(page).locator("button.seal").click();
   await expect.poll(() => state(page), { timeout: 20_000 }).toBe("challenge");
+  // A person reads the hint and finds target 1 before pressing anything.
+  await page.waitForTimeout(400);
   for (const [i, n] of ["1", "2", "3"].entries()) {
     await widget(page)
       .getByRole("button", { name: `Target ${n}` })
