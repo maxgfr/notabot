@@ -56,6 +56,10 @@ export function mountOfficer(ctx: OfficerContext): void {
   let recommended: Recommended[] = [];
   let mode: Mode = "key";
   let providersShown = -1;
+  // The settings work for the page, but the browser refused to keep them (storage full, or
+  // blocked): an origin shared with other sites can be filled by any of them.
+  let notKept = false;
+  const kept = (text: string) => (notKept ? `${text} ${t("officer.notKept")}` : text);
 
   const say = (text: string, kind: "" | "ok" | "bad" = "") => {
     status.textContent = text;
@@ -143,6 +147,7 @@ export function mountOfficer(ctx: OfficerContext): void {
   showMode(form.querySelector<HTMLInputElement>('input[name="mode"]:checked')?.value ?? "key");
 
   async function settings(): Promise<LlmSettings | null> {
+    notKept = false;
     if (mode === "proxy")
       return proxySettings(
         $<HTMLInputElement>("endpoint").value.trim(),
@@ -159,6 +164,7 @@ export function mountOfficer(ctx: OfficerContext): void {
     // Kept for the page only, unless the visitor asked to remember it.
     store.setRememberKey(remember.checked);
     const saved = await store.save();
+    notKept = saved.ok && !saved.persisted;
     return saved.ok ? store.settings() : null;
   }
 
@@ -167,7 +173,10 @@ export function mountOfficer(ctx: OfficerContext): void {
     if (!s) return say(t("officer.needModel"), "bad");
     say(t("officer.testing"));
     const result = await testConnection(s);
-    say(result.ok ? t("officer.ok") : (result.message ?? result.reason), result.ok ? "ok" : "bad");
+    say(
+      result.ok ? kept(t("officer.ok")) : (result.message ?? result.reason),
+      result.ok ? "ok" : "bad",
+    );
   });
 
   form.addEventListener("submit", async (e) => {
@@ -200,9 +209,11 @@ export function mountOfficer(ctx: OfficerContext): void {
         p: Math.round(bot * 100),
       });
       say(
-        rulesDecided(rulesBot)
-          ? `${t("officer.skipped", { p: Math.round(rulesBot * 100) })} ${line}`
-          : line,
+        kept(
+          rulesDecided(rulesBot)
+            ? `${t("officer.skipped", { p: Math.round(rulesBot * 100) })} ${line}`
+            : line,
+        ),
         result.verdict.verdict === "bot" ? "bad" : "ok",
       );
     } catch (error) {

@@ -145,7 +145,11 @@ export function proxySettings(endpoint: string, model = "default"): LlmSettings 
 /** Where the catalog falls back to when models.dev or OpenRouter cannot be reached. */
 export const DEFAULT_CATALOG_URL = "https://maxgfr.github.io/notabot/cdn/models.json";
 
-/** The settings form of a visitor who brings their own key (or a local Ollama). */
+/**
+ * The settings form of a visitor who brings their own key (or a local Ollama). Every name it
+ * stores under starts with `storageKey`: the preferences, the encrypted key's database and the
+ * catalog's cache, so two apps on one origin (the project pages of a `user.github.io`) keep apart.
+ */
 export function visitorStore(
   options: { catalogUrl?: string; storageKey?: string; provider?: string; model?: string } = {},
 ): LlmSettingsStore {
@@ -154,7 +158,10 @@ export function visitorStore(
   if (options.provider) defaults.providerId = options.provider;
   if (options.model) defaults.model = options.model;
   return createLlmSettingsStore({
-    catalog: liveCatalog({ fallbackUrl: options.catalogUrl ?? DEFAULT_CATALOG_URL }),
+    catalog: liveCatalog({
+      fallbackUrl: options.catalogUrl ?? DEFAULT_CATALOG_URL,
+      cacheName: `${key}-catalog`,
+    }),
     storage: secureStorage({ prefsKey: `${key}-llm`, dbName: `${key}-secrets` }),
     recommended: options.provider
       ? [options.provider, ...DEFAULT_RECOMMENDED.filter((id) => id !== options.provider)]
