@@ -1,5 +1,11 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { classify, classifyLocal, type LlmSettings, trainLocal } from "../src/llm/index";
+import {
+  classify,
+  classifyLocal,
+  type LlmSettings,
+  trainLocal,
+  visitorStore,
+} from "../src/llm/index";
 import { toFeatures } from "../src/llm/prompt";
 import { createNotabot } from "../src/middleware/index";
 import { type Challenge, encodeSolution, search } from "../src/pow/index";
@@ -206,5 +212,37 @@ describe("local regression", () => {
     const out = classifyLocal(toFeatures(s, score({ signals: s })));
     expect(out.bot).toBeGreaterThan(0.5);
     expect(["human", "unsure", "bot"]).toContain(out.verdict.verdict);
+  });
+});
+
+describe("visitorStore", () => {
+  test("keeps the catalog in a cache named after its storage key, not llm-connect's shared one", async () => {
+    // On an origin several sites share, a generic cache name is every llm-connect app's.
+    const opened: string[] = [];
+    const g = globalThis as { caches?: unknown; fetch: typeof fetch };
+    const realFetch = g.fetch;
+    g.caches = {
+      open: async (name: string) => {
+        opened.push(name);
+        throw new Error("no cache here");
+      },
+    };
+    g.fetch = (async () => {
+      throw new TypeError("offline");
+    }) as unknown as typeof fetch;
+    try {
+      const store = visitorStore({
+        storageKey: "some-app",
+        catalogUrl: "http://127.0.0.1:9/models.json",
+      });
+      store.open();
+      for (let i = 0; i < 100 && store.getState().catalogStatus === "loading"; i++)
+        await new Promise((r) => setTimeout(r, 10));
+      expect(opened.length).toBeGreaterThan(0);
+      expect(new Set(opened)).toEqual(new Set(["some-app-catalog"]));
+    } finally {
+      g.fetch = realFetch;
+      delete g.caches;
+    }
   });
 });

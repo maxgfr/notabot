@@ -59,6 +59,7 @@
   "officer.testing": "Testing…",
   "officer.asking": "Asking {model}…",
   "officer.ok": "Connection works.",
+  "officer.notKept": "Storage for this site is full or blocked: these model settings will be lost when you reload.",
   "officer.verdict": "{model}: {verdict} at {c} % confidence, in {ms} ms. Blended with the rules: bot probability {p} %.",
   "officer.unreadable": "The model answered, but not in the requested format. Its raw answer is on the right.",
   "officer.recommended": "Small models that suit this: {list}",

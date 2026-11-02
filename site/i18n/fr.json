@@ -59,6 +59,7 @@
   "officer.testing": "Test…",
   "officer.asking": "Question à {model}…",
   "officer.ok": "La connexion fonctionne.",
+  "officer.notKept": "Le stockage de ce site est plein ou bloqué : ces réglages du modèle seront perdus au rechargement.",
   "officer.verdict": "{model} : {verdict}, sûr à {c} %, en {ms} ms. Combiné aux règles : probabilité de robot {p} %.",
   "officer.unreadable": "Le modèle a répondu, mais pas au format demandé. Sa réponse brute est à droite.",
   "officer.recommended": "Petits modèles adaptés : {list}",

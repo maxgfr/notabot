@@ -128,7 +128,7 @@
     "@ai-sdk/openai-compatible": "^3.0.80",
     "@ai-sdk/provider": "^4.0.34",
     "ai": "^7.0.155",
-    "llm-connect": "^2.5.0",
+    "llm-connect": "^2.6.0",
     "llm-models": "^1.14.0"
   },
   "devDependencies": {
